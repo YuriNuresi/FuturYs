@@ -1,0 +1,21 @@
+/* Game UI Elements */
+#hud {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    pointer-events: none;
+}
+
+#top-bar {
+    display: flex;
+    justify-content: space-between;
+    padding: 1rem;
+    background: rgba(10, 14, 39, 0.9);
+    pointer-events: auto;
+}
+
+.resource {
+    display: inline-block;
+    margin: 0 1rem;
+}

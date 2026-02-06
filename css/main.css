@@ -1,0 +1,27 @@
+/* FuturY - Main Stylesheet */
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+:root {
+    --color-space-dark: #0a0e27;
+    --color-accent-cyan: #4fd1c7;
+    --color-accent-blue: #63b3ed;
+}
+
+body {
+    font-family: 'Segoe UI', sans-serif;
+    background: linear-gradient(135deg, #0c0c0c 0%, #1a1a2e 50%, #16213e 100%);
+    color: white;
+    min-height: 100vh;
+}
+
+#game-container {
+    display: none;
+    width: 100%;
+    height: 100vh;
+}
+
+#solar-system-canvas {
+    width: 100%;
+    height: 100%;
+    display: block;
+}
