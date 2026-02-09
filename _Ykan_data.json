@@ -279,7 +279,7 @@
             "id": "card_102",
             "title": "Create Sun with light emission",
             "description": "Sole come sorgente luminosa centrale",
-            "column_id": "col_1",
+            "column_id": "col_3",
             "swimlane_id": "lane_2",
             "labels": ["lbl_2"],
             "priority": "high",

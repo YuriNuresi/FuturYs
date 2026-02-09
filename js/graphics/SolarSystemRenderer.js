@@ -30,6 +30,7 @@ export class SolarSystemRenderer {
         this._setupRenderer();
         this._setupCamera();
         this._setupLighting();
+        this._createSun();
         this._createStarfield();
 
         window.addEventListener('resize', this._boundResize);
@@ -70,6 +71,39 @@ export class SolarSystemRenderer {
         const sunLight = new THREE.PointLight(0xffffff, 2.0, 0, 0.5);
         sunLight.position.set(0, 0, 0);
         this.scene.add(sunLight);
+    }
+
+    _createSun() {
+        const sunGroup = new THREE.Group();
+
+        // Core sphere — self-lit, unaffected by scene lighting
+        const coreGeo = new THREE.SphereGeometry(8, 64, 64);
+        const coreMat = new THREE.MeshBasicMaterial({ color: 0xffdd44 });
+        const core = new THREE.Mesh(coreGeo, coreMat);
+        sunGroup.add(core);
+
+        // Inner glow layer
+        const glowGeo = new THREE.SphereGeometry(9.5, 32, 32);
+        const glowMat = new THREE.MeshBasicMaterial({
+            color: 0xffaa00,
+            transparent: true,
+            opacity: 0.3,
+            side: THREE.BackSide
+        });
+        sunGroup.add(new THREE.Mesh(glowGeo, glowMat));
+
+        // Outer corona
+        const coronaGeo = new THREE.SphereGeometry(12, 32, 32);
+        const coronaMat = new THREE.MeshBasicMaterial({
+            color: 0xff6600,
+            transparent: true,
+            opacity: 0.1,
+            side: THREE.BackSide
+        });
+        sunGroup.add(new THREE.Mesh(coronaGeo, coronaMat));
+
+        this.sun = sunGroup;
+        this.scene.add(this.sun);
     }
 
     _createStarfield() {
@@ -116,6 +150,12 @@ export class SolarSystemRenderer {
 
     render() {
         if (!this.renderer) return;
+
+        // Slow sun rotation
+        if (this.sun) {
+            this.sun.rotation.y += 0.001;
+        }
+
         this.renderer.render(this.scene, this.camera);
     }
 
