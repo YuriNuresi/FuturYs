@@ -147,12 +147,23 @@ export class SolarSystemRenderer {
         // Raycaster for planet selection
         this.raycaster = new THREE.Raycaster();
         this.mouse = new THREE.Vector2();
+        this._mouse = new THREE.Vector2();
+        this._raycaster = new THREE.Raycaster();
+
+        // Interaction state
+        this._pointerDown = null;
+        this._hoveredPlanet = null;
+        this.selectedPlanet = null;
+        this._selectionRing = null;
+        this._frameCount = 0;
 
         // Game time — updated externally by TimeManager
         this.gameYear = 2100;
 
         this._boundResize = this._onWindowResize.bind(this);
-        this._boundClick = this._onCanvasClick.bind(this);
+        this._boundPointerDown = this._onPointerDown.bind(this);
+        this._boundPointerUp = this._onPointerUp.bind(this);
+        this._boundPointerMove = this._onPointerMove.bind(this);
     }
 
     async init() {
@@ -175,7 +186,6 @@ export class SolarSystemRenderer {
         this._setupInteraction();
 
         window.addEventListener('resize', this._boundResize);
-        this.canvas.addEventListener('click', this._boundClick);
 
         console.log('Solar System scene ready');
     }
@@ -580,17 +590,27 @@ export class SolarSystemRenderer {
         this._selectionRing.scale.set(ringScale, ringScale, ringScale);
         this._selectionRing.visible = true;
 
-        this.onPlanetClick?.(name);
+        // Get full planet info and pass to callback
+        if (this.onPlanetClick) {
+            const planetInfo = this._getPlanetInfo(name, planet);
+            this.onPlanetClick(planetInfo);
+        }
     }
 
     deselectPlanet() {
         if (!this.selectedPlanet) return;
         this.selectedPlanet = null;
         this._selectionRing.visible = false;
-        this.onPlanetClick?.(null);
+        if (this.onPlanetClick) {
+            this.onPlanetClick(null);
+        }
     }
 
     // --- Resize (debounced) ---
+
+    _onWindowResize() {
+        this._onResizeDebounced();
+    }
 
     _onResizeDebounced() {
         clearTimeout(this._resizeTimer);
@@ -656,57 +676,26 @@ export class SolarSystemRenderer {
     }
 
     /**
-     * Handle canvas click to select planets
-     */
-    _onCanvasClick(event) {
-        // Calculate normalized device coordinates (-1 to +1)
-        const rect = this.canvas.getBoundingClientRect();
-        this.mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
-        this.mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
-
-        // Update the raycaster
-        this.raycaster.setFromCamera(this.mouse, this.camera);
-
-        // Get all planet meshes
-        const planetMeshes = Array.from(this.planets.values()).map(p => p.mesh);
-
-        // Check for intersections
-        const intersects = this.raycaster.intersectObjects(planetMeshes, false);
-
-        if (intersects.length > 0) {
-            const clickedMesh = intersects[0].object;
-            const planetName = clickedMesh.name;
-            const planetData = this.planets.get(planetName);
-
-            if (planetData && this.onPlanetClick) {
-                // Get planet info
-                const planetInfo = this._getPlanetInfo(planetName, planetData);
-                this.onPlanetClick(planetInfo);
-            }
-        }
-    }
-
-    /**
      * Get detailed information about a planet
      */
     _getPlanetInfo(name, planetData) {
-        const { elements } = planetData;
-        const pos = computeOrbitalPosition(elements, this.gameYear);
+        const { coeffs } = planetData;
+        const pos = computeOrbitalPosition(coeffs, this.gameYear);
 
         // Calculate distance from Earth
         const earthData = this.planets.get('earth');
-        const earthPos = computeOrbitalPosition(earthData.elements, this.gameYear);
+        const earthPos = computeOrbitalPosition(earthData.coeffs, this.gameYear);
         const dx = pos.x - earthPos.x;
         const dy = pos.y - earthPos.y;
         const dz = pos.z - earthPos.z;
         const distanceFromEarth = Math.sqrt(dx * dx + dy * dy + dz * dz);
 
         // Distance from Sun in AU
-        const distanceFromSun = elements.a;
+        const distanceFromSun = coeffs.a;
 
         // Estimated travel time (simplified: assuming constant velocity of 50,000 km/h)
         // Convert scene units back to AU, then to km, then calculate time
-        const distanceAU = distanceFromEarth * elements.a / auToScene(elements.a);
+        const distanceAU = distanceFromEarth * coeffs.a / auToScene(coeffs.a);
         const distanceKm = distanceAU * 149597870.7; // 1 AU in km
         const velocityKmH = 50000;
         const travelTimeHours = distanceKm / velocityKmH;
@@ -736,14 +725,16 @@ export class SolarSystemRenderer {
             distanceFromSun: distanceFromSun.toFixed(2) + ' AU',
             distanceFromEarth: distanceAU.toFixed(2) + ' AU',
             travelTime: travelTimeDays.toFixed(1) + ' days',
-            orbitalPeriod: elements.period.toFixed(2) + ' years',
-            eccentricity: elements.e.toFixed(3)
+            orbitalPeriod: (360 / coeffs.n).toFixed(2) + ' years',
+            eccentricity: coeffs.e.toFixed(3)
         };
     }
 
     dispose() {
         window.removeEventListener('resize', this._boundResize);
-        this.canvas.removeEventListener('click', this._boundClick);
+        this.canvas.removeEventListener('pointerdown', this._boundPointerDown);
+        this.canvas.removeEventListener('pointerup', this._boundPointerUp);
+        this.canvas.removeEventListener('pointermove', this._boundPointerMove);
         this.controls?.dispose();
         this.renderer?.dispose();
     }
