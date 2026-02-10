@@ -237,17 +237,16 @@
         const DAYS_IN_MONTH = [31,28,31,30,31,30,31,31,30,31,30,31];
 
         function yearFractionToDate(fraction) {
-            const totalDays = fraction * 365;
-            let dayOfYear = Math.floor(totalDays);
+            const totalHours = fraction * 365 * 24;
+            let dayOfYear = Math.floor(totalHours / 24);
+            const hour = Math.floor(totalHours % 24);
             let month = 0;
             let tempDay = dayOfYear;
             while (month < 11 && tempDay >= DAYS_IN_MONTH[month]) {
                 tempDay -= DAYS_IN_MONTH[month];
                 month++;
             }
-            const dayInMonth = tempDay + 1;
-            const hour = Math.floor((totalDays - dayOfYear) * 24);
-            return `(${MONTHS[month]}-${String(dayInMonth).padStart(2, '0')} ${hour}:00)`;
+            return `(${MONTHS[month]}-${String(dayOfYear + 1).padStart(2, '0')} ${String(hour).padStart(2, '0')}:00)`;
         }
 
         function animate() {

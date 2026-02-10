@@ -1,7 +1,7 @@
 /**
  * SolarSystemRenderer - 3D Solar System Scene (Three.js)
  * Keplerian orbital mechanics with NASA JPL elements (J2000.0 epoch)
- * Procedural canvas textures for all planets
+ * Procedural canvas-based textures for all planets
  * @version 4.0.0
  */
 
@@ -482,6 +482,428 @@ const ORBIT_UPDATE_EVERY = 4;
 // Max pointer movement (px) to still count as a click (not a drag)
 const CLICK_THRESHOLD = 5;
 
+// ============================================================
+// Procedural Texture Generation (Canvas2D)
+// ============================================================
+
+/** Seeded pseudo-random (simple mulberry32) for reproducible textures */
+function seededRandom(seed) {
+    let t = seed + 0x6D2B79F5;
+    return function () {
+        t = Math.imul(t ^ (t >>> 15), t | 1);
+        t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+        return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+}
+
+/** Mix two CSS-style [r,g,b] colours by factor t (0..1) */
+function mixColor(c1, c2, t) {
+    return [
+        Math.round(c1[0] + (c2[0] - c1[0]) * t),
+        Math.round(c1[1] + (c2[1] - c1[1]) * t),
+        Math.round(c1[2] + (c2[2] - c1[2]) * t)
+    ];
+}
+
+function rgbStr(c) { return `rgb(${c[0]},${c[1]},${c[2]})`; }
+
+/**
+ * Generate a procedural equirectangular texture on a canvas
+ * @param {number} w - canvas width
+ * @param {number} h - canvas height
+ * @param {function} pixelFn - (u, v, rng) => [r,g,b]  where u,v in [0,1]
+ * @param {number} seed
+ * @returns {HTMLCanvasElement}
+ */
+function generateTexture(w, h, pixelFn, seed) {
+    const canvas = document.createElement('canvas');
+    canvas.width = w;
+    canvas.height = h;
+    const ctx = canvas.getContext('2d');
+    const img = ctx.createImageData(w, h);
+    const rng = seededRandom(seed);
+
+    for (let y = 0; y < h; y++) {
+        const v = y / h; // 0 = north pole, 1 = south pole
+        for (let x = 0; x < w; x++) {
+            const u = x / w; // 0..1 longitude
+            const [r, g, b] = pixelFn(u, v, rng);
+            const i = (y * w + x) * 4;
+            img.data[i] = r;
+            img.data[i + 1] = g;
+            img.data[i + 2] = b;
+            img.data[i + 3] = 255;
+        }
+    }
+    ctx.putImageData(img, 0, 0);
+    return canvas;
+}
+
+/** Simple 2D value noise (interpolated grid) */
+function makeNoise2D(seed, gridSize) {
+    const rng = seededRandom(seed);
+    const grid = [];
+    for (let i = 0; i < gridSize * gridSize; i++) grid.push(rng());
+
+    return function (u, v) {
+        const gx = u * (gridSize - 1);
+        const gy = v * (gridSize - 1);
+        const ix = Math.floor(gx);
+        const iy = Math.floor(gy);
+        const fx = gx - ix;
+        const fy = gy - iy;
+
+        const idx = (yy, xx) => grid[((yy % gridSize) * gridSize + (xx % gridSize)) % grid.length];
+        const a = idx(iy, ix);
+        const b = idx(iy, ix + 1);
+        const c = idx(iy + 1, ix);
+        const d = idx(iy + 1, ix + 1);
+
+        const top = a + (b - a) * fx;
+        const bot = c + (d - c) * fx;
+        return top + (bot - top) * fy;
+    };
+}
+
+/** Multi-octave fractal noise */
+function fractalNoise(u, v, noises, octaves) {
+    let val = 0, amp = 1, total = 0;
+    for (let i = 0; i < octaves; i++) {
+        const scale = Math.pow(2, i);
+        val += noises[i % noises.length]((u * scale) % 1, (v * scale) % 1) * amp;
+        total += amp;
+        amp *= 0.5;
+    }
+    return val / total;
+}
+
+// --- Individual planet texture generators ---
+
+function mercuryTexture() {
+    const n1 = makeNoise2D(42, 32);
+    const n2 = makeNoise2D(99, 64);
+    const n3 = makeNoise2D(157, 16);
+    const base = [140, 126, 109]; // grey-brown
+    const dark = [80, 72, 62];
+    const light = [170, 160, 145];
+
+    return generateTexture(512, 256, (u, v, rng) => {
+        const f = fractalNoise(u, v, [n1, n2, n3], 4);
+        // Craters: bright spots surrounded by dark rings
+        const crater = n2(u * 3 % 1, v * 3 % 1);
+        let c = mixColor(dark, light, f);
+        if (crater > 0.72) {
+            c = mixColor(c, light, (crater - 0.72) * 3);
+        } else if (crater > 0.65) {
+            c = mixColor(c, dark, (crater - 0.65) * 5);
+        }
+        // Subtle noise grain
+        const grain = (rng() - 0.5) * 12;
+        return [c[0] + grain, c[1] + grain, c[2] + grain];
+    }, 42);
+}
+
+function venusTexture() {
+    const n1 = makeNoise2D(200, 24);
+    const n2 = makeNoise2D(201, 48);
+    const n3 = makeNoise2D(202, 12);
+    const pale = [232, 205, 160]; // pale yellow
+    const swirl = [210, 180, 130];
+    const bright = [245, 225, 190];
+
+    return generateTexture(512, 256, (u, v) => {
+        // Swirling cloud bands
+        const warp = n3(u, v) * 0.15;
+        const f = fractalNoise((u + warp) % 1, v, [n1, n2], 3);
+        const band = Math.sin(v * Math.PI * 8 + f * 4) * 0.5 + 0.5;
+        let c = mixColor(swirl, bright, band * 0.6 + f * 0.4);
+        // Slight latitude darkening at poles
+        const poleFade = Math.pow(Math.sin(v * Math.PI), 0.3);
+        c = mixColor([180, 155, 110], c, poleFade);
+        return c;
+    }, 200);
+}
+
+function earthTexture() {
+    const n1 = makeNoise2D(300, 32);
+    const n2 = makeNoise2D(301, 64);
+    const n3 = makeNoise2D(302, 16);
+    const n4 = makeNoise2D(303, 128);
+
+    const ocean = [20, 60, 140];
+    const oceanDeep = [10, 30, 100];
+    const land = [40, 120, 50];
+    const desert = [180, 160, 100];
+    const mountain = [100, 85, 65];
+    const ice = [230, 240, 250];
+
+    return generateTexture(512, 256, (u, v) => {
+        const f = fractalNoise(u, v, [n1, n2, n3], 5);
+        const detail = n4(u * 4 % 1, v * 4 % 1);
+        const lat = Math.abs(v - 0.5) * 2; // 0 = equator, 1 = pole
+
+        // Ice caps
+        if (lat > 0.85) {
+            const iceFade = (lat - 0.85) / 0.15;
+            return mixColor(ocean, ice, iceFade);
+        }
+
+        // Land vs ocean threshold
+        if (f > 0.52) {
+            // Land
+            const elevation = (f - 0.52) / 0.48;
+            let c;
+            if (lat < 0.3 && elevation < 0.3) {
+                // Tropical/temperate = green
+                c = mixColor(land, [60, 140, 60], detail);
+            } else if (lat > 0.5) {
+                // Higher latitudes = darker greens / tundra
+                c = mixColor([60, 90, 50], mountain, elevation);
+            } else {
+                // Mid latitudes: mix of green and desert
+                c = mixColor(land, desert, elevation * 1.5);
+            }
+            // Mountains at high elevation
+            if (elevation > 0.6) {
+                c = mixColor(c, mountain, (elevation - 0.6) * 2.5);
+            }
+            return c;
+        } else {
+            // Ocean with depth variation
+            const depth = (0.52 - f) / 0.52;
+            return mixColor(ocean, oceanDeep, depth);
+        }
+    }, 300);
+}
+
+function marsTexture() {
+    const n1 = makeNoise2D(400, 32);
+    const n2 = makeNoise2D(401, 64);
+    const n3 = makeNoise2D(402, 16);
+
+    const rust = [193, 68, 14];
+    const darkRed = [130, 45, 15];
+    const sand = [210, 150, 90];
+    const polar = [220, 210, 200];
+
+    return generateTexture(512, 256, (u, v, rng) => {
+        const f = fractalNoise(u, v, [n1, n2, n3], 4);
+        const lat = Math.abs(v - 0.5) * 2;
+
+        // Polar ice caps (smaller than Earth's)
+        if (lat > 0.9) {
+            const iceFade = (lat - 0.9) / 0.1;
+            return mixColor(rust, polar, iceFade);
+        }
+
+        // Terrain variation: dark lowlands vs bright highlands
+        let c;
+        if (f > 0.55) {
+            c = mixColor(rust, sand, (f - 0.55) * 3);
+        } else {
+            c = mixColor(darkRed, rust, f / 0.55);
+        }
+        // Valles Marineris-like dark streaks
+        const streak = n2(u * 2 % 1, v * 0.5);
+        if (streak > 0.7 && lat < 0.4) {
+            c = mixColor(c, darkRed, (streak - 0.7) * 2);
+        }
+        const grain = (rng() - 0.5) * 8;
+        return [c[0] + grain, c[1] + grain, c[2] + grain];
+    }, 400);
+}
+
+function jupiterTexture() {
+    const n1 = makeNoise2D(500, 48);
+    const n2 = makeNoise2D(501, 24);
+    const n3 = makeNoise2D(502, 96);
+
+    const bands = [
+        [200, 168, 122],  // light tan
+        [170, 130, 80],   // darker tan
+        [210, 185, 145],  // cream
+        [150, 110, 60],   // brown
+        [190, 155, 100],  // medium
+        [220, 200, 160],  // pale
+        [140, 100, 55],   // dark brown
+        [200, 175, 130],  // warm tan
+    ];
+
+    return generateTexture(512, 256, (u, v) => {
+        // Horizontal banding with turbulence
+        const warp = n1(u, v) * 0.06;
+        const bandIndex = ((v + warp) * bands.length * 2) % bands.length;
+        const idx = Math.floor(bandIndex);
+        const frac = bandIndex - idx;
+        const c1 = bands[idx % bands.length];
+        const c2 = bands[(idx + 1) % bands.length];
+        let c = mixColor(c1, c2, frac);
+
+        // Turbulent swirls
+        const swirl = n3(u * 2 % 1, v * 3 % 1);
+        const swirlColor = mixColor(c, bands[(idx + 3) % bands.length], swirl * 0.3);
+
+        // Great Red Spot (approx at latitude 22S, longitude ~0.6)
+        const spotLat = 0.62; // v coordinate (~22deg south)
+        const spotLon = 0.6;
+        const dx = (u - spotLon);
+        const dy = (v - spotLat);
+        const spotDist = Math.sqrt(dx * dx * 16 + dy * dy * 64);
+        if (spotDist < 1.0) {
+            const spotFade = 1 - spotDist;
+            const spotColor = [180, 80, 40];
+            return mixColor(swirlColor, spotColor, spotFade * 0.7);
+        }
+
+        return swirlColor;
+    }, 500);
+}
+
+function saturnTexture() {
+    const n1 = makeNoise2D(600, 48);
+    const n2 = makeNoise2D(601, 24);
+
+    const bands = [
+        [212, 184, 106],  // gold
+        [195, 170, 100],  // darker gold
+        [225, 205, 155],  // pale gold
+        [180, 155, 85],   // olive gold
+        [215, 195, 140],  // light
+        [200, 178, 110],  // medium
+    ];
+
+    return generateTexture(512, 256, (u, v) => {
+        const warp = n1(u, v) * 0.04;
+        const bandIndex = ((v + warp) * bands.length * 2.5) % bands.length;
+        const idx = Math.floor(bandIndex);
+        const frac = bandIndex - idx;
+        const c1 = bands[idx % bands.length];
+        const c2 = bands[(idx + 1) % bands.length];
+        let c = mixColor(c1, c2, frac);
+
+        // Subtle turbulence
+        const turb = n2(u * 2 % 1, v * 2 % 1);
+        c = mixColor(c, bands[(idx + 2) % bands.length], turb * 0.15);
+
+        // Pole darkening
+        const poleFade = Math.pow(Math.sin(v * Math.PI), 0.5);
+        c = mixColor([160, 140, 80], c, poleFade);
+
+        return c;
+    }, 600);
+}
+
+function uranusTexture() {
+    const n1 = makeNoise2D(700, 32);
+    const n2 = makeNoise2D(701, 64);
+
+    const base = [126, 200, 200]; // cyan-teal
+    const light = [160, 220, 220];
+    const pale = [180, 230, 230];
+    const dark = [80, 160, 165];
+
+    return generateTexture(512, 256, (u, v) => {
+        const f = fractalNoise(u, v, [n1, n2], 3);
+        // Very subtle banding (Uranus is quite uniform)
+        const band = Math.sin(v * Math.PI * 6 + f * 2) * 0.5 + 0.5;
+        let c = mixColor(dark, light, band * 0.4 + f * 0.3);
+
+        // Slight pole brightening
+        const poleFade = Math.pow(Math.sin(v * Math.PI), 0.6);
+        c = mixColor(pale, c, poleFade);
+
+        return c;
+    }, 700);
+}
+
+function neptuneTexture() {
+    const n1 = makeNoise2D(800, 32);
+    const n2 = makeNoise2D(801, 64);
+    const n3 = makeNoise2D(802, 16);
+
+    const deepBlue = [30, 40, 140];
+    const blue = [51, 68, 170];
+    const lightBlue = [80, 110, 200];
+    const streak = [100, 140, 220];
+
+    return generateTexture(512, 256, (u, v) => {
+        const f = fractalNoise(u, v, [n1, n2, n3], 4);
+        // Banding
+        const band = Math.sin(v * Math.PI * 8 + f * 3) * 0.5 + 0.5;
+        let c = mixColor(deepBlue, blue, band * 0.5 + f * 0.3);
+
+        // Storm bands / bright streaks (like the Great Dark Spot region)
+        const stormNoise = n3(u * 2 % 1, v);
+        if (stormNoise > 0.65 && v > 0.35 && v < 0.65) {
+            c = mixColor(c, streak, (stormNoise - 0.65) * 2.5);
+        }
+
+        // White cloud wisps
+        const cloud = n2(u * 3 % 1, v * 2 % 1);
+        if (cloud > 0.75) {
+            c = mixColor(c, lightBlue, (cloud - 0.75) * 3);
+        }
+
+        return c;
+    }, 800);
+}
+
+/** Generate Saturn ring texture (radial gradient with gaps) */
+function saturnRingTexture() {
+    const w = 512, h = 16;
+    const canvas = document.createElement('canvas');
+    canvas.width = w;
+    canvas.height = h;
+    const ctx = canvas.getContext('2d');
+    const img = ctx.createImageData(w, h);
+    const rng = seededRandom(650);
+
+    for (let x = 0; x < w; x++) {
+        const u = x / w; // 0 = inner edge, 1 = outer edge
+        // Ring brightness profile with gaps
+        let brightness;
+        // B ring (bright, inner)
+        if (u < 0.35) {
+            brightness = 0.6 + u * 1.2;
+        }
+        // Cassini division (dark gap)
+        else if (u < 0.42) {
+            brightness = 0.1;
+        }
+        // A ring (medium bright)
+        else if (u < 0.75) {
+            brightness = 0.5 + Math.sin((u - 0.42) * 9) * 0.15;
+        }
+        // Encke gap
+        else if (u < 0.78) {
+            brightness = 0.15;
+        }
+        // Outer A ring / F ring
+        else {
+            brightness = 0.3 * (1 - (u - 0.78) / 0.22);
+        }
+
+        const noise = rng() * 0.08;
+        brightness = Math.max(0, Math.min(1, brightness + noise));
+
+        const r = Math.round(194 * brightness);
+        const g = Math.round(165 * brightness);
+        const b = Math.round(90 * brightness);
+        const a = Math.round(brightness * 200);
+
+        for (let y = 0; y < h; y++) {
+            const i = (y * w + x) * 4;
+            img.data[i] = r;
+            img.data[i + 1] = g;
+            img.data[i + 2] = b;
+            img.data[i + 3] = a;
+        }
+    }
+    ctx.putImageData(img, 0, 0);
+    return canvas;
+}
+
+
 export class SolarSystemRenderer {
     constructor(canvasId) {
         this.canvas = document.getElementById(canvasId);
@@ -607,16 +1029,16 @@ export class SolarSystemRenderer {
      * @param {string} name
      * @param {object} opts
      * @param {number} opts.radius - sphere radius
-     * @param {THREE.Texture} opts.texture - procedural canvas texture
+     * @param {HTMLCanvasElement} opts.textureCanvas - procedural texture canvas
      * @param {number} opts.rotationPeriod - sidereal rotation period in Earth hours (negative = retrograde)
      * @param {number} opts.axialTilt - axial tilt in degrees
      * @param {THREE.Mesh[]} [opts.extras] - extra meshes (atmosphere, rings) added to group
      */
-    _addPlanet(name, { radius, texture, rotationPeriod, axialTilt, extras }) {
-        const geo = new THREE.SphereGeometry(radius, 48, 48);
-        const mat = new THREE.MeshStandardMaterial({
-            map: texture, roughness: 0.85, metalness: 0.05
-        });
+    _addPlanet(name, { radius, textureCanvas, rotationPeriod, axialTilt, extras }) {
+        const geo = new THREE.SphereGeometry(radius, 32, 32);
+        const texture = new THREE.CanvasTexture(textureCanvas);
+        texture.colorSpace = THREE.SRGBColorSpace;
+        const mat = new THREE.MeshStandardMaterial({ map: texture, roughness: 0.8, metalness: 0.1 });
         const mesh = new THREE.Mesh(geo, mat);
         mesh.name = name;
 
@@ -641,14 +1063,14 @@ export class SolarSystemRenderer {
 
     _createMercury() {
         this._addPlanet('mercury', {
-            radius: 1.2, texture: generateMercuryTexture(),
+            radius: 1.2, textureCanvas: mercuryTexture(),
             rotationPeriod: 1407.6, axialTilt: 0.034
         });
     }
 
     _createVenus() {
         this._addPlanet('venus', {
-            radius: 2.8, texture: generateVenusTexture(),
+            radius: 2.8, textureCanvas: venusTexture(),
             rotationPeriod: -5832.5, axialTilt: 177.4
         });
     }
@@ -661,51 +1083,63 @@ export class SolarSystemRenderer {
         const atmosphere = new THREE.Mesh(atmoGeo, atmoMat);
 
         this._addPlanet('earth', {
-            radius: 3, texture: generateEarthTexture(),
+            radius: 3, textureCanvas: earthTexture(),
             rotationPeriod: 23.93, axialTilt: 23.44, extras: [atmosphere]
         });
     }
 
     _createMars() {
         this._addPlanet('mars', {
-            radius: 1.6, texture: generateMarsTexture(),
+            radius: 1.6, textureCanvas: marsTexture(),
             rotationPeriod: 24.62, axialTilt: 25.19
         });
     }
 
     _createJupiter() {
         this._addPlanet('jupiter', {
-            radius: 6.5, texture: generateJupiterTexture(),
+            radius: 6.5, textureCanvas: jupiterTexture(),
             rotationPeriod: 9.93, axialTilt: 3.13
         });
     }
 
     _createSaturn() {
-        const ringTex = generateSaturnRingTexture();
-        ringTex.rotation = Math.PI / 2;
+        // Procedural ring with proper texture
         const ringGeo = new THREE.RingGeometry(7, 12, 64);
+        // Fix UV mapping for ring (map u to radial distance)
+        const pos = ringGeo.attributes.position;
+        const uv = ringGeo.attributes.uv;
+        for (let i = 0; i < pos.count; i++) {
+            const x = pos.getX(i);
+            const z = pos.getY(i);
+            const dist = Math.sqrt(x * x + z * z);
+            uv.setXY(i, (dist - 7) / 5, 0.5); // map radial dist to u
+        }
+
+        const ringCanvas = saturnRingTexture();
+        const ringTex = new THREE.CanvasTexture(ringCanvas);
+        ringTex.colorSpace = THREE.SRGBColorSpace;
         const ringMat = new THREE.MeshBasicMaterial({
-            map: ringTex, transparent: true, opacity: 0.75, side: THREE.DoubleSide
+            map: ringTex, transparent: true, side: THREE.DoubleSide
         });
         const ring = new THREE.Mesh(ringGeo, ringMat);
         ring.rotation.x = Math.PI * 0.45;
 
         this._addPlanet('saturn', {
-            radius: 5.5, texture: generateSaturnTexture(),
+            radius: 5.5, textureCanvas: saturnTexture(),
             rotationPeriod: 10.66, axialTilt: 26.73, extras: [ring]
         });
     }
 
     _createUranus() {
         this._addPlanet('uranus', {
-            radius: 4, texture: generateUranusTexture(),
+            radius: 4, textureCanvas: uranusTexture(),
             rotationPeriod: -17.24, axialTilt: 97.77
         });
     }
 
     _createNeptune() {
         this._addPlanet('neptune', {
-            radius: 3.8, texture: generateNeptuneTexture(),
+            radius: 3.8, textureCanvas: neptuneTexture(),
             rotationPeriod: 16.11, axialTilt: 28.32
         });
     }
@@ -1000,7 +1434,8 @@ export class SolarSystemRenderer {
                 planet.group.position.set(pos.x, pos.y, pos.z);
             }
 
-            // Self-rotation — cheap, update every frame for smoothness
+            // Self-rotation: absolute angle from game year
+            // rotationsPerYear * gameYear * 2pi = total angle
             const angle = planet.rotationsPerYear * this.gameYear * TWO_PI;
             planet.mesh.quaternion.setFromAxisAngle(planet.rotationAxis, angle);
         }
