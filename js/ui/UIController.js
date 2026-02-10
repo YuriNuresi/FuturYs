@@ -1,18 +1,65 @@
 export class UIController {
     constructor() {
         this.onLaunchMission = null;
+        this.planetPanel = null;
+        this.closeBtn = null;
+        this._initPlanetPanel();
     }
-    
+
     showLoading(text) {
         console.log('Loading:', text);
     }
-    
+
     hideLoading() {
         console.log('Loading hidden');
     }
-    
+
+    _initPlanetPanel() {
+        // Get panel elements
+        this.planetPanel = document.getElementById('planet-info-panel');
+        this.closeBtn = document.getElementById('close-panel');
+
+        // Add close button event listener
+        if (this.closeBtn) {
+            this.closeBtn.addEventListener('click', () => this.hidePlanetInfo());
+        }
+    }
+
     showPlanetInfo(data) {
-        console.log('Planet info:', data);
+        if (!this.planetPanel) {
+            console.error('Planet panel not found');
+            return;
+        }
+
+        // Populate panel with planet data
+        this._setElementText('planet-name', data.name);
+        this._setElementText('planet-description', data.description);
+        this._setElementText('planet-type', data.type);
+        this._setElementText('planet-mass', data.mass);
+        this._setElementText('planet-diameter', data.diameter);
+        this._setElementText('planet-moons', data.moons);
+        this._setElementText('planet-distance-sun', data.distanceFromSun);
+        this._setElementText('planet-distance-earth', data.distanceFromEarth);
+        this._setElementText('planet-orbital-period', data.orbitalPeriod);
+        this._setElementText('planet-travel-time', data.travelTime);
+
+        // Show panel
+        this.planetPanel.classList.remove('hidden');
+
+        console.log('Planet info displayed:', data.name);
+    }
+
+    hidePlanetInfo() {
+        if (this.planetPanel) {
+            this.planetPanel.classList.add('hidden');
+        }
+    }
+
+    _setElementText(id, text) {
+        const element = document.getElementById(id);
+        if (element) {
+            element.textContent = text || 'N/A';
+        }
     }
     
     updateGameState(state) {
