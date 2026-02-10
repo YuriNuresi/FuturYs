@@ -36,6 +36,108 @@
             font-size: 12px;
             line-height: 1.6;
         }
+        /* Planet Information Panel */
+        .planet-panel {
+            position: fixed;
+            top: 50%;
+            right: 20px;
+            transform: translateY(-50%);
+            width: 350px;
+            max-height: 80vh;
+            background: rgba(10, 15, 30, 0.95);
+            border: 1px solid #4fd1c7;
+            border-radius: 12px;
+            padding: 0;
+            box-shadow: 0 8px 32px rgba(79, 209, 199, 0.3);
+            z-index: 200;
+            transition: all 0.3s ease;
+            overflow: hidden;
+        }
+        .planet-panel.hidden {
+            opacity: 0;
+            pointer-events: none;
+            transform: translateY(-50%) translateX(400px);
+        }
+        .panel-header {
+            background: linear-gradient(135deg, #1a2744 0%, #0f1829 100%);
+            padding: 16px 20px;
+            border-bottom: 1px solid #4fd1c7;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .panel-header h3 {
+            margin: 0;
+            font-size: 20px;
+            color: #4fd1c7;
+            text-transform: capitalize;
+        }
+        .close-btn {
+            background: none;
+            border: none;
+            color: #4fd1c7;
+            font-size: 28px;
+            cursor: pointer;
+            padding: 0;
+            width: 30px;
+            height: 30px;
+            line-height: 1;
+            transition: all 0.2s;
+        }
+        .close-btn:hover {
+            color: #fff;
+            transform: rotate(90deg);
+        }
+        .panel-content {
+            padding: 20px;
+            max-height: calc(80vh - 70px);
+            overflow-y: auto;
+        }
+        .description {
+            color: #99ddee;
+            font-size: 14px;
+            line-height: 1.6;
+            margin-bottom: 20px;
+            font-style: italic;
+        }
+        .info-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 12px;
+        }
+        .info-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 10px 12px;
+            background: rgba(79, 209, 199, 0.05);
+            border-left: 3px solid #4fd1c7;
+            border-radius: 4px;
+        }
+        .info-item .label {
+            color: #88bbcc;
+            font-size: 13px;
+            font-weight: 500;
+        }
+        .info-item .value {
+            color: #fff;
+            font-size: 13px;
+            font-weight: 600;
+            text-align: right;
+        }
+        /* Scrollbar styling */
+        .panel-content::-webkit-scrollbar {
+            width: 6px;
+        }
+        .panel-content::-webkit-scrollbar-track {
+            background: rgba(0, 0, 0, 0.2);
+        }
+        .panel-content::-webkit-scrollbar-thumb {
+            background: #4fd1c7;
+            border-radius: 3px;
+        }
+        .panel-content::-webkit-scrollbar-thumb:hover {
+            background: #5fe1d7;
+        }
     </style>
 </head>
 <body>
@@ -47,15 +149,82 @@
         <div class="controls-hint">
             Click + trascina: ruota<br>
             Scroll: zoom<br>
-            Click destro + trascina: pan
+            Click destro + trascina: pan<br>
+            Click su pianeta: info
+        </div>
+    </div>
+
+    <!-- Planet Information Panel -->
+    <div id="planet-info-panel" class="planet-panel hidden">
+        <div class="panel-header">
+            <h3 id="planet-name">Planet Name</h3>
+            <button id="close-panel" class="close-btn">&times;</button>
+        </div>
+        <div class="panel-content">
+            <p id="planet-description" class="description"></p>
+
+            <div class="info-grid">
+                <div class="info-item">
+                    <span class="label">Type:</span>
+                    <span id="planet-type" class="value"></span>
+                </div>
+                <div class="info-item">
+                    <span class="label">Mass:</span>
+                    <span id="planet-mass" class="value"></span>
+                </div>
+                <div class="info-item">
+                    <span class="label">Diameter:</span>
+                    <span id="planet-diameter" class="value"></span>
+                </div>
+                <div class="info-item">
+                    <span class="label">Moons:</span>
+                    <span id="planet-moons" class="value"></span>
+                </div>
+                <div class="info-item">
+                    <span class="label">Distance from Sun:</span>
+                    <span id="planet-distance-sun" class="value"></span>
+                </div>
+                <div class="info-item">
+                    <span class="label">Distance from Earth:</span>
+                    <span id="planet-distance-earth" class="value"></span>
+                </div>
+                <div class="info-item">
+                    <span class="label">Orbital Period:</span>
+                    <span id="planet-orbital-period" class="value"></span>
+                </div>
+                <div class="info-item">
+                    <span class="label">Travel Time:</span>
+                    <span id="planet-travel-time" class="value"></span>
+                </div>
+            </div>
         </div>
     </div>
 
     <script type="module">
         import { SolarSystemRenderer } from './js/graphics/SolarSystemRenderer.js';
+        import { UIController } from './js/ui/UIController.js';
 
         const renderer = new SolarSystemRenderer('solar-system-canvas');
+        const uiController = new UIController();
+
+        // Connect renderer to UI controller for planet selection
+        renderer.onPlanetClick = (planetInfo) => {
+            uiController.showPlanetInfo(planetInfo);
+        };
+
         await renderer.init();
+
+        // Planet selection HUD
+        const selBox = document.getElementById('selected-planet');
+        const selName = document.getElementById('selected-planet-name');
+        renderer.onPlanetClick = (name) => {
+            if (name) {
+                selName.textContent = name;
+                selBox.style.display = 'block';
+            } else {
+                selBox.style.display = 'none';
+            }
+        };
 
         // Game time: 1 game year (365 days) = 24 real hours (86400 seconds)
         const startYear = 2100;
