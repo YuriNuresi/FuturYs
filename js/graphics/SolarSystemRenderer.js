@@ -35,6 +35,10 @@ export class SolarSystemRenderer {
         this._createVenus();
         this._createEarth();
         this._createMars();
+        this._createJupiter();
+        this._createSaturn();
+        this._createUranus();
+        this._createNeptune();
         this._createStarfield();
 
         window.addEventListener('resize', this._boundResize);
@@ -192,6 +196,74 @@ export class SolarSystemRenderer {
             distance: 75,
             orbitalSpeed: 0.0008,
             rotationSpeed: 0.003
+        });
+    }
+
+    _createJupiter() {
+        this._addPlanet('jupiter', {
+            radius: 6.5,
+            color: 0xc8a87a,
+            distance: 120,
+            orbitalSpeed: 0.0004,
+            rotationSpeed: 0.006
+        });
+    }
+
+    _createSaturn() {
+        const pivot = new THREE.Group();
+
+        // Planet body
+        const geo = new THREE.SphereGeometry(5.5, 64, 64);
+        const mat = new THREE.MeshStandardMaterial({
+            color: 0xd4b86a,
+            roughness: 0.7,
+            metalness: 0.1
+        });
+        const mesh = new THREE.Mesh(geo, mat);
+        mesh.position.x = 170;
+        mesh.name = 'saturn';
+
+        // Ring system
+        const ringGeo = new THREE.RingGeometry(7, 12, 64);
+        const ringMat = new THREE.MeshBasicMaterial({
+            color: 0xc2a55a,
+            transparent: true,
+            opacity: 0.6,
+            side: THREE.DoubleSide
+        });
+        const ring = new THREE.Mesh(ringGeo, ringMat);
+        ring.position.copy(mesh.position);
+        ring.rotation.x = Math.PI * 0.45;
+
+        pivot.add(mesh);
+        pivot.add(ring);
+        this.scene.add(pivot);
+
+        this.planets.set('saturn', {
+            mesh, pivot,
+            distance: 170,
+            orbitalSpeed: 0.0003,
+            rotationSpeed: 0.005
+        });
+    }
+
+    _createUranus() {
+        this._addPlanet('uranus', {
+            radius: 4,
+            color: 0x7ec8c8,
+            distance: 230,
+            orbitalSpeed: 0.0002,
+            rotationSpeed: -0.004  // retrograde rotation
+        });
+    }
+
+    _createNeptune() {
+        this._addPlanet('neptune', {
+            radius: 3.8,
+            color: 0x3344aa,
+            distance: 290,
+            orbitalSpeed: 0.00015,
+            rotationSpeed: 0.004
         });
     }
 
