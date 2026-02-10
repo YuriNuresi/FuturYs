@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FuturY - Sistema Solare</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { background: #000; overflow: hidden; font-family: 'Segoe UI', sans-serif; }
+        #solar-system-canvas {
+            width: 100vw;
+            height: 100vh;
+            display: block;
+        }
+        #hud {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            color: #4fd1c7;
+            font-size: 14px;
+            z-index: 100;
+            pointer-events: none;
+        }
+        #hud h2 { font-size: 18px; margin-bottom: 8px; }
+        #hud .year { font-size: 24px; color: #fff; margin-bottom: 12px; }
+        #hud .controls-hint {
+            color: #667;
+            font-size: 12px;
+            line-height: 1.6;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="solar-system-canvas"></canvas>
+
+    <div id="hud">
+        <h2>FuturY</h2>
+        <div class="year">Anno <span id="game-year">2100</span></div>
+        <div class="controls-hint">
+            Click + trascina: ruota<br>
+            Scroll: zoom<br>
+            Click destro + trascina: pan
+        </div>
+    </div>
+
+    <script type="module">
+        import { SolarSystemRenderer } from './js/graphics/SolarSystemRenderer.js';
+
+        const renderer = new SolarSystemRenderer('solar-system-canvas');
+        await renderer.init();
+
+        // Simulate game time: advance ~1 game year every 24 real seconds (accelerated for testing)
+        const startYear = 2100;
+        const startTime = performance.now();
+        const yearEl = document.getElementById('game-year');
+
+        function animate() {
+            requestAnimationFrame(animate);
+
+            // 1 real second = ~1 game year (for visual testing)
+            const elapsed = (performance.now() - startTime) / 1000;
+            const gameYear = startYear + elapsed;
+            renderer.setGameYear(gameYear);
+            yearEl.textContent = Math.floor(gameYear);
+
+            renderer.render();
+        }
+
+        animate();
+    </script>
+</body>
+</html>
