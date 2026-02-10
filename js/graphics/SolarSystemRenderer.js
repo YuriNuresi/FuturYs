@@ -1,11 +1,364 @@
 /**
  * SolarSystemRenderer - 3D Solar System Scene (Three.js)
  * Keplerian orbital mechanics with NASA JPL elements (J2000.0 epoch)
+ * Procedural canvas textures for all planets
  * @version 4.0.0
  */
 
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+// === Procedural Texture Generator ===
+
+const TEX_W = 512;
+const TEX_H = 256;
+
+function createCanvas() {
+    const c = document.createElement('canvas');
+    c.width = TEX_W;
+    c.height = TEX_H;
+    return c;
+}
+
+/** Seeded pseudo-random (simple mulberry32) */
+function seededRandom(seed) {
+    let s = seed | 0;
+    return function() {
+        s = (s + 0x6D2B79F5) | 0;
+        let t = Math.imul(s ^ (s >>> 15), 1 | s);
+        t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+        return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+}
+
+/** Simple 2D value noise */
+function valueNoise(x, y, rand) {
+    const ix = Math.floor(x), iy = Math.floor(y);
+    const fx = x - ix, fy = y - iy;
+    const sx = fx * fx * (3 - 2 * fx), sy = fy * fy * (3 - 2 * fy);
+    const hash = (a, b) => {
+        const n = (a * 374761393 + b * 668265263 + 1013904223) & 0x7fffffff;
+        return (n * n * n * 60493) / 2147483648.0 % 1;
+    };
+    const v00 = hash(ix, iy), v10 = hash(ix+1, iy);
+    const v01 = hash(ix, iy+1), v11 = hash(ix+1, iy+1);
+    const top = v00 + (v10 - v00) * sx;
+    const bot = v01 + (v11 - v01) * sx;
+    return top + (bot - top) * sy;
+}
+
+/** Fractional Brownian motion (fBm) */
+function fbm(x, y, octaves, rand) {
+    let val = 0, amp = 0.5, freq = 1;
+    for (let i = 0; i < octaves; i++) {
+        val += amp * valueNoise(x * freq, y * freq, rand);
+        amp *= 0.5;
+        freq *= 2;
+    }
+    return val;
+}
+
+function lerpColor(r1,g1,b1, r2,g2,b2, t) {
+    return [
+        r1 + (r2 - r1) * t,
+        g1 + (g2 - g1) * t,
+        b1 + (b2 - b1) * t
+    ];
+}
+
+// --- Mercury: grey rocky surface with craters ---
+function generateMercuryTexture() {
+    const c = createCanvas(), ctx = c.getContext('2d');
+    const rand = seededRandom(111);
+    const img = ctx.createImageData(TEX_W, TEX_H);
+    for (let y = 0; y < TEX_H; y++) {
+        for (let x = 0; x < TEX_W; x++) {
+            const n = fbm(x / 60, y / 60, 5, rand);
+            const base = 100 + n * 80;
+            const i = (y * TEX_W + x) * 4;
+            img.data[i] = base * 0.95;
+            img.data[i+1] = base * 0.90;
+            img.data[i+2] = base * 0.82;
+            img.data[i+3] = 255;
+        }
+    }
+    ctx.putImageData(img, 0, 0);
+    // craters
+    const craterCount = 80;
+    for (let i = 0; i < craterCount; i++) {
+        const cx = rand() * TEX_W, cy = rand() * TEX_H;
+        const r = 2 + rand() * 12;
+        ctx.beginPath();
+        ctx.arc(cx, cy, r, 0, Math.PI * 2);
+        ctx.fillStyle = `rgba(60,55,45,${0.15 + rand() * 0.25})`;
+        ctx.fill();
+        // rim highlight
+        ctx.beginPath();
+        ctx.arc(cx - r*0.2, cy - r*0.2, r * 0.85, 0, Math.PI * 2);
+        ctx.strokeStyle = `rgba(180,170,150,${0.15 + rand() * 0.15})`;
+        ctx.lineWidth = 0.8;
+        ctx.stroke();
+    }
+    return new THREE.CanvasTexture(c);
+}
+
+// --- Venus: thick yellow-orange clouds with swirl patterns ---
+function generateVenusTexture() {
+    const c = createCanvas(), ctx = c.getContext('2d');
+    const img = ctx.createImageData(TEX_W, TEX_H);
+    for (let y = 0; y < TEX_H; y++) {
+        for (let x = 0; x < TEX_W; x++) {
+            const lat = y / TEX_H;
+            const n1 = fbm(x / 80 + lat * 2, y / 40, 5, null);
+            const n2 = fbm(x / 50 + 10, y / 30 + 5, 4, null);
+            const swirl = n1 * 0.6 + n2 * 0.4;
+            const r = 200 + swirl * 55;
+            const g = 170 + swirl * 45;
+            const b = 100 + swirl * 30;
+            const i = (y * TEX_W + x) * 4;
+            img.data[i] = Math.min(255, r);
+            img.data[i+1] = Math.min(255, g);
+            img.data[i+2] = Math.min(255, b);
+            img.data[i+3] = 255;
+        }
+    }
+    ctx.putImageData(img, 0, 0);
+    return new THREE.CanvasTexture(c);
+}
+
+// --- Earth: oceans, continents, polar caps ---
+function generateEarthTexture() {
+    const c = createCanvas(), ctx = c.getContext('2d');
+    const img = ctx.createImageData(TEX_W, TEX_H);
+    for (let y = 0; y < TEX_H; y++) {
+        const lat = (y / TEX_H - 0.5) * 2; // -1 to 1
+        for (let x = 0; x < TEX_W; x++) {
+            const n = fbm(x / 70, y / 70, 6, null);
+            const n2 = fbm(x / 40 + 100, y / 40 + 100, 4, null);
+            const landThreshold = 0.42 + Math.abs(lat) * 0.05;
+            const isLand = (n * 0.7 + n2 * 0.3) > landThreshold;
+            const polar = Math.abs(lat) > 0.82;
+            let r, g, b;
+            if (polar) {
+                r = 230 + n * 25; g = 235 + n * 20; b = 240 + n * 15;
+            } else if (isLand) {
+                const elevation = n * 0.7 + n2 * 0.3 - landThreshold;
+                if (elevation > 0.2) {
+                    // mountains
+                    r = 140 + n * 40; g = 120 + n * 30; b = 80 + n * 20;
+                } else if (Math.abs(lat) < 0.25) {
+                    // tropical green
+                    r = 50 + n * 40; g = 120 + n * 50; b = 40 + n * 20;
+                } else {
+                    // temperate green/brown
+                    r = 80 + n * 50; g = 130 + n * 40; b = 50 + n * 25;
+                }
+            } else {
+                // ocean
+                const depth = n * 0.3;
+                r = 15 + depth * 30; g = 50 + depth * 50; b = 140 + depth * 60;
+            }
+            const i4 = (y * TEX_W + x) * 4;
+            img.data[i4] = Math.min(255, r);
+            img.data[i4+1] = Math.min(255, g);
+            img.data[i4+2] = Math.min(255, b);
+            img.data[i4+3] = 255;
+        }
+    }
+    ctx.putImageData(img, 0, 0);
+    return new THREE.CanvasTexture(c);
+}
+
+// --- Mars: red/orange terrain with dark regions, polar caps ---
+function generateMarsTexture() {
+    const c = createCanvas(), ctx = c.getContext('2d');
+    const img = ctx.createImageData(TEX_W, TEX_H);
+    for (let y = 0; y < TEX_H; y++) {
+        const lat = (y / TEX_H - 0.5) * 2;
+        for (let x = 0; x < TEX_W; x++) {
+            const n = fbm(x / 60, y / 60, 5, null);
+            const n2 = fbm(x / 35 + 50, y / 35 + 50, 4, null);
+            const polar = Math.abs(lat) > 0.88;
+            let r, g, b;
+            if (polar) {
+                r = 220 + n * 35; g = 215 + n * 30; b = 210 + n * 25;
+            } else {
+                const dark = n2 > 0.55;
+                if (dark) {
+                    r = 120 + n * 40; g = 60 + n * 25; b = 30 + n * 15;
+                } else {
+                    r = 190 + n * 50; g = 110 + n * 35; b = 60 + n * 20;
+                }
+            }
+            const i4 = (y * TEX_W + x) * 4;
+            img.data[i4] = Math.min(255, r);
+            img.data[i4+1] = Math.min(255, g);
+            img.data[i4+2] = Math.min(255, b);
+            img.data[i4+3] = 255;
+        }
+    }
+    ctx.putImageData(img, 0, 0);
+    return new THREE.CanvasTexture(c);
+}
+
+// --- Jupiter: horizontal bands with Great Red Spot ---
+function generateJupiterTexture() {
+    const c = createCanvas(), ctx = c.getContext('2d');
+    const img = ctx.createImageData(TEX_W, TEX_H);
+    // Band colors: alternating cream/orange/brown
+    const bands = [
+        [210,190,150], [180,140,90], [220,200,160], [160,120,80],
+        [230,210,170], [190,150,100], [200,170,130], [170,130,85],
+        [225,205,165], [185,145,95], [215,195,155], [165,125,82]
+    ];
+    for (let y = 0; y < TEX_H; y++) {
+        const lat = y / TEX_H;
+        const bandIdx = Math.floor(lat * bands.length);
+        const nextIdx = Math.min(bandIdx + 1, bands.length - 1);
+        const t = (lat * bands.length) - bandIdx;
+        const bc = lerpColor(...bands[bandIdx], ...bands[nextIdx], t);
+        for (let x = 0; x < TEX_W; x++) {
+            const n = fbm(x / 100 + lat * 3, y / 20, 4, null);
+            const turb = fbm(x / 40, y / 15 + 200, 3, null) * 15;
+            let r = bc[0] + n * 30 + turb;
+            let g = bc[1] + n * 20 + turb * 0.6;
+            let b = bc[2] + n * 10;
+            // Great Red Spot (around 22% south, 60% longitude)
+            const dx = (x / TEX_W - 0.6) * TEX_W;
+            const dy = (y / TEX_H - 0.65) * TEX_H;
+            const spotDist = Math.sqrt(dx*dx*0.6 + dy*dy*1.5);
+            if (spotDist < 22) {
+                const spotT = 1 - spotDist / 22;
+                const spotIntensity = spotT * spotT;
+                r = r + (200 - r) * spotIntensity * 0.7;
+                g = g + (80 - g) * spotIntensity * 0.7;
+                b = b + (60 - b) * spotIntensity * 0.7;
+            }
+            const i4 = (y * TEX_W + x) * 4;
+            img.data[i4] = Math.min(255, Math.max(0, r));
+            img.data[i4+1] = Math.min(255, Math.max(0, g));
+            img.data[i4+2] = Math.min(255, Math.max(0, b));
+            img.data[i4+3] = 255;
+        }
+    }
+    ctx.putImageData(img, 0, 0);
+    return new THREE.CanvasTexture(c);
+}
+
+// --- Saturn: horizontal bands in gold/cream ---
+function generateSaturnTexture() {
+    const c = createCanvas(), ctx = c.getContext('2d');
+    const img = ctx.createImageData(TEX_W, TEX_H);
+    const bands = [
+        [220,200,150], [200,180,130], [230,215,170], [190,170,120],
+        [225,210,160], [205,185,135], [215,195,145], [195,175,125],
+        [228,212,165], [198,178,128]
+    ];
+    for (let y = 0; y < TEX_H; y++) {
+        const lat = y / TEX_H;
+        const bandIdx = Math.floor(lat * bands.length);
+        const nextIdx = Math.min(bandIdx + 1, bands.length - 1);
+        const t = (lat * bands.length) - bandIdx;
+        const bc = lerpColor(...bands[bandIdx], ...bands[nextIdx], t);
+        for (let x = 0; x < TEX_W; x++) {
+            const n = fbm(x / 120, y / 25, 4, null);
+            const r = bc[0] + n * 25;
+            const g = bc[1] + n * 20;
+            const b = bc[2] + n * 10;
+            const i4 = (y * TEX_W + x) * 4;
+            img.data[i4] = Math.min(255, r);
+            img.data[i4+1] = Math.min(255, g);
+            img.data[i4+2] = Math.min(255, b);
+            img.data[i4+3] = 255;
+        }
+    }
+    ctx.putImageData(img, 0, 0);
+    return new THREE.CanvasTexture(c);
+}
+
+// --- Saturn Ring texture ---
+function generateSaturnRingTexture() {
+    const c = document.createElement('canvas');
+    c.width = 512; c.height = 64;
+    const ctx = c.getContext('2d');
+    const img = ctx.createImageData(512, 64);
+    const rand = seededRandom(777);
+    for (let x = 0; x < 512; x++) {
+        const u = x / 512; // 0=inner, 1=outer
+        const n = fbm(x / 30, 0, 3, null);
+        // Multiple ring bands with gaps
+        const gap1 = (u > 0.38 && u < 0.42) ? 0.1 : 1.0;  // Cassini division
+        const gap2 = (u > 0.18 && u < 0.20) ? 0.3 : 1.0;
+        const brightness = (160 + n * 60) * gap1 * gap2;
+        const alpha = (u < 0.05 || u > 0.95) ? 0 : (180 + n * 50) * gap1 * gap2;
+        for (let y = 0; y < 64; y++) {
+            const i4 = (y * 512 + x) * 4;
+            img.data[i4] = Math.min(255, brightness * 1.1);
+            img.data[i4+1] = Math.min(255, brightness * 0.95);
+            img.data[i4+2] = Math.min(255, brightness * 0.75);
+            img.data[i4+3] = Math.min(255, Math.max(0, alpha));
+        }
+    }
+    ctx.putImageData(img, 0, 0);
+    return new THREE.CanvasTexture(c);
+}
+
+// --- Uranus: subtle cyan/teal bands ---
+function generateUranusTexture() {
+    const c = createCanvas(), ctx = c.getContext('2d');
+    const img = ctx.createImageData(TEX_W, TEX_H);
+    for (let y = 0; y < TEX_H; y++) {
+        const lat = y / TEX_H;
+        for (let x = 0; x < TEX_W; x++) {
+            const n = fbm(x / 150, y / 30, 3, null);
+            const band = Math.sin(lat * Math.PI * 8) * 10;
+            const r = 100 + n * 30 + band * 0.3;
+            const g = 185 + n * 25 + band * 0.5;
+            const b = 195 + n * 20 + band * 0.4;
+            const i4 = (y * TEX_W + x) * 4;
+            img.data[i4] = Math.min(255, Math.max(0, r));
+            img.data[i4+1] = Math.min(255, Math.max(0, g));
+            img.data[i4+2] = Math.min(255, Math.max(0, b));
+            img.data[i4+3] = 255;
+        }
+    }
+    ctx.putImageData(img, 0, 0);
+    return new THREE.CanvasTexture(c);
+}
+
+// --- Neptune: deep blue with darker bands and a dark spot ---
+function generateNeptuneTexture() {
+    const c = createCanvas(), ctx = c.getContext('2d');
+    const img = ctx.createImageData(TEX_W, TEX_H);
+    for (let y = 0; y < TEX_H; y++) {
+        const lat = y / TEX_H;
+        for (let x = 0; x < TEX_W; x++) {
+            const n = fbm(x / 100, y / 25, 4, null);
+            const band = Math.sin(lat * Math.PI * 10) * 12;
+            let r = 30 + n * 25 + band * 0.2;
+            let g = 50 + n * 30 + band * 0.4;
+            let b = 160 + n * 40 + band * 0.5;
+            // Great Dark Spot (around 30% south, 40% longitude)
+            const dx = (x / TEX_W - 0.4) * TEX_W;
+            const dy = (y / TEX_H - 0.62) * TEX_H;
+            const spotDist = Math.sqrt(dx*dx*0.8 + dy*dy*2);
+            if (spotDist < 18) {
+                const spotT = 1 - spotDist / 18;
+                const dark = spotT * spotT * 0.5;
+                r *= (1 - dark);
+                g *= (1 - dark);
+                b *= (1 - dark * 0.4);
+            }
+            const i4 = (y * TEX_W + x) * 4;
+            img.data[i4] = Math.min(255, Math.max(0, r));
+            img.data[i4+1] = Math.min(255, Math.max(0, g));
+            img.data[i4+2] = Math.min(255, Math.max(0, b));
+            img.data[i4+3] = 255;
+        }
+    }
+    ctx.putImageData(img, 0, 0);
+    return new THREE.CanvasTexture(c);
+}
 
 // --- Orbital Elements (NASA JPL, epoch J2000.0 = 1 Jan 2000 12:00 TT) ---
 // a = semi-major axis (AU), e = eccentricity, I = inclination (deg),
@@ -254,15 +607,16 @@ export class SolarSystemRenderer {
      * @param {string} name
      * @param {object} opts
      * @param {number} opts.radius - sphere radius
-     * @param {number} opts.color - hex color
+     * @param {THREE.Texture} opts.texture - procedural canvas texture
      * @param {number} opts.rotationPeriod - sidereal rotation period in Earth hours (negative = retrograde)
      * @param {number} opts.axialTilt - axial tilt in degrees
      * @param {THREE.Mesh[]} [opts.extras] - extra meshes (atmosphere, rings) added to group
      */
-    _addPlanet(name, { radius, color, rotationPeriod, axialTilt, extras }) {
-        const segs = PLANET_SEGMENTS[name] || SEGMENTS.medium;
-        const geo = new THREE.SphereGeometry(radius, segs, segs);
-        const mat = new THREE.MeshStandardMaterial({ color, roughness: 0.8, metalness: 0.1 });
+    _addPlanet(name, { radius, texture, rotationPeriod, axialTilt, extras }) {
+        const geo = new THREE.SphereGeometry(radius, 48, 48);
+        const mat = new THREE.MeshStandardMaterial({
+            map: texture, roughness: 0.85, metalness: 0.05
+        });
         const mesh = new THREE.Mesh(geo, mat);
         mesh.name = name;
 
@@ -287,62 +641,72 @@ export class SolarSystemRenderer {
 
     _createMercury() {
         this._addPlanet('mercury', {
-            radius: 1.2, color: 0x8c7e6d, rotationPeriod: 1407.6, axialTilt: 0.034
+            radius: 1.2, texture: generateMercuryTexture(),
+            rotationPeriod: 1407.6, axialTilt: 0.034
         });
     }
 
     _createVenus() {
         this._addPlanet('venus', {
-            radius: 2.8, color: 0xe8cda0, rotationPeriod: -5832.5, axialTilt: 177.4
+            radius: 2.8, texture: generateVenusTexture(),
+            rotationPeriod: -5832.5, axialTilt: 177.4
         });
     }
 
     _createEarth() {
-        const atmoGeo = new THREE.SphereGeometry(3.3, 32, 32);
+        const atmoGeo = new THREE.SphereGeometry(3.3, 48, 48);
         const atmoMat = new THREE.MeshBasicMaterial({
             color: 0x88bbff, transparent: true, opacity: 0.15, side: THREE.BackSide
         });
         const atmosphere = new THREE.Mesh(atmoGeo, atmoMat);
 
         this._addPlanet('earth', {
-            radius: 3, color: 0x2266aa, rotationPeriod: 23.93, axialTilt: 23.44, extras: [atmosphere]
+            radius: 3, texture: generateEarthTexture(),
+            rotationPeriod: 23.93, axialTilt: 23.44, extras: [atmosphere]
         });
     }
 
     _createMars() {
         this._addPlanet('mars', {
-            radius: 1.6, color: 0xc1440e, rotationPeriod: 24.62, axialTilt: 25.19
+            radius: 1.6, texture: generateMarsTexture(),
+            rotationPeriod: 24.62, axialTilt: 25.19
         });
     }
 
     _createJupiter() {
         this._addPlanet('jupiter', {
-            radius: 6.5, color: 0xc8a87a, rotationPeriod: 9.93, axialTilt: 3.13
+            radius: 6.5, texture: generateJupiterTexture(),
+            rotationPeriod: 9.93, axialTilt: 3.13
         });
     }
 
     _createSaturn() {
+        const ringTex = generateSaturnRingTexture();
+        ringTex.rotation = Math.PI / 2;
         const ringGeo = new THREE.RingGeometry(7, 12, 64);
         const ringMat = new THREE.MeshBasicMaterial({
-            color: 0xc2a55a, transparent: true, opacity: 0.6, side: THREE.DoubleSide
+            map: ringTex, transparent: true, opacity: 0.75, side: THREE.DoubleSide
         });
         const ring = new THREE.Mesh(ringGeo, ringMat);
         ring.rotation.x = Math.PI * 0.45;
 
         this._addPlanet('saturn', {
-            radius: 5.5, color: 0xd4b86a, rotationPeriod: 10.66, axialTilt: 26.73, extras: [ring]
+            radius: 5.5, texture: generateSaturnTexture(),
+            rotationPeriod: 10.66, axialTilt: 26.73, extras: [ring]
         });
     }
 
     _createUranus() {
         this._addPlanet('uranus', {
-            radius: 4, color: 0x7ec8c8, rotationPeriod: -17.24, axialTilt: 97.77
+            radius: 4, texture: generateUranusTexture(),
+            rotationPeriod: -17.24, axialTilt: 97.77
         });
     }
 
     _createNeptune() {
         this._addPlanet('neptune', {
-            radius: 3.8, color: 0x3344aa, rotationPeriod: 16.11, axialTilt: 28.32
+            radius: 3.8, texture: generateNeptuneTexture(),
+            rotationPeriod: 16.11, axialTilt: 28.32
         });
     }
 

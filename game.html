@@ -145,7 +145,7 @@
 
     <div id="hud">
         <h2>FuturY</h2>
-        <div class="year">Anno <span id="game-year">2100</span> <span id="game-date" style="color: #4fd1c7; font-size: 16px;">(gen-01)</span></div>
+        <div class="year">Anno <span id="game-year">2100</span> <span id="game-date" style="color: #4fd1c7; font-size: 16px;">(gen-01 0:00)</span></div>
         <div class="controls-hint">
             Click + trascina: ruota<br>
             Scroll: zoom<br>
@@ -237,13 +237,17 @@
         const DAYS_IN_MONTH = [31,28,31,30,31,30,31,31,30,31,30,31];
 
         function yearFractionToDate(fraction) {
-            let dayOfYear = Math.floor(fraction * 365);
+            const totalDays = fraction * 365;
+            let dayOfYear = Math.floor(totalDays);
             let month = 0;
-            while (month < 11 && dayOfYear >= DAYS_IN_MONTH[month]) {
-                dayOfYear -= DAYS_IN_MONTH[month];
+            let tempDay = dayOfYear;
+            while (month < 11 && tempDay >= DAYS_IN_MONTH[month]) {
+                tempDay -= DAYS_IN_MONTH[month];
                 month++;
             }
-            return `(${MONTHS[month]}-${String(dayOfYear + 1).padStart(2, '0')})`;
+            const dayInMonth = tempDay + 1;
+            const hour = Math.floor((totalDays - dayOfYear) * 24);
+            return `(${MONTHS[month]}-${String(dayInMonth).padStart(2, '0')} ${hour}:00)`;
         }
 
         function animate() {
