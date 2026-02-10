@@ -5,6 +5,7 @@
  */
 
 import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js';
+import { OrbitControls } from 'https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/controls/OrbitControls.js';
 
 // --- Orbital Elements (NASA JPL, epoch J2000.0 = 1 Jan 2000 12:00 TT) ---
 // a = semi-major axis (AU), e = eccentricity, I = inclination (deg),
@@ -101,6 +102,7 @@ export class SolarSystemRenderer {
         this.scene = null;
         this.camera = null;
         this.renderer = null;
+        this.controls = null;
         this.clock = new THREE.Clock();
 
         // Scene objects
@@ -119,6 +121,7 @@ export class SolarSystemRenderer {
 
         this._setupRenderer();
         this._setupCamera();
+        this._setupControls();
         this._setupLighting();
         this._createSun();
         this._createMercury();
@@ -158,6 +161,18 @@ export class SolarSystemRenderer {
         this.camera = new THREE.PerspectiveCamera(60, aspect, 0.1, 50000);
         this.camera.position.set(0, 80, 200);
         this.camera.lookAt(0, 0, 0);
+    }
+
+    _setupControls() {
+        this.controls = new OrbitControls(this.camera, this.canvas);
+        this.controls.enableDamping = true;
+        this.controls.dampingFactor = 0.08;
+        this.controls.minDistance = 20;
+        this.controls.maxDistance = 1000;
+        this.controls.enablePan = true;
+        this.controls.panSpeed = 0.8;
+        this.controls.rotateSpeed = 0.6;
+        this.controls.zoomSpeed = 1.2;
     }
 
     _setupLighting() {
@@ -322,6 +337,11 @@ export class SolarSystemRenderer {
     render() {
         if (!this.renderer) return;
 
+        // Update controls (damping)
+        if (this.controls) {
+            this.controls.update();
+        }
+
         // Sun rotation
         if (this.sun) {
             this.sun.rotation.y += 0.001;
@@ -344,6 +364,7 @@ export class SolarSystemRenderer {
 
     dispose() {
         window.removeEventListener('resize', this._boundResize);
+        this.controls?.dispose();
         this.renderer?.dispose();
     }
 }
