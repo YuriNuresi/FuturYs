@@ -399,7 +399,7 @@
             "id": "card_112",
             "title": "Add planet rotation on axis",
             "description": "Rotazione pianeti su asse",
-            "column_id": "col_1",
+            "column_id": "col_3",
             "swimlane_id": "lane_2",
             "labels": ["lbl_2"],
             "priority": "low",

@@ -194,7 +194,7 @@ export class SolarSystemRenderer {
 
     // --- Planets ---
 
-    _addPlanet(name, { radius, color, rotationSpeed, extras }) {
+    _addPlanet(name, { radius, color, rotationSpeed, axialTilt, extras }) {
         const geo = new THREE.SphereGeometry(radius, 32, 32);
         const mat = new THREE.MeshStandardMaterial({ color, roughness: 0.8, metalness: 0.1 });
         const mesh = new THREE.Mesh(geo, mat);
@@ -205,21 +205,25 @@ export class SolarSystemRenderer {
         const extraMeshes = extras || [];
         extraMeshes.forEach(m => this.scene.add(m));
 
+        // Pre-compute tilted rotation axis from axial tilt
+        const tilt = degToRad(axialTilt || 0);
+        const rotationAxis = new THREE.Vector3(Math.sin(tilt), Math.cos(tilt), 0).normalize();
+
         this.planets.set(name, {
-            mesh, extras: extraMeshes, rotationSpeed,
+            mesh, extras: extraMeshes, rotationSpeed, rotationAxis,
             elements: ORBITAL_ELEMENTS[name]
         });
     }
 
     _createMercury() {
         this._addPlanet('mercury', {
-            radius: 1.2, color: 0x8c7e6d, rotationSpeed: 0.002
+            radius: 1.2, color: 0x8c7e6d, rotationSpeed: 0.002, axialTilt: 0.034
         });
     }
 
     _createVenus() {
         this._addPlanet('venus', {
-            radius: 2.8, color: 0xe8cda0, rotationSpeed: -0.0005
+            radius: 2.8, color: 0xe8cda0, rotationSpeed: -0.0005, axialTilt: 177.4
         });
     }
 
@@ -231,19 +235,19 @@ export class SolarSystemRenderer {
         const atmosphere = new THREE.Mesh(atmoGeo, atmoMat);
 
         this._addPlanet('earth', {
-            radius: 3, color: 0x2266aa, rotationSpeed: 0.003, extras: [atmosphere]
+            radius: 3, color: 0x2266aa, rotationSpeed: 0.003, axialTilt: 23.44, extras: [atmosphere]
         });
     }
 
     _createMars() {
         this._addPlanet('mars', {
-            radius: 1.6, color: 0xc1440e, rotationSpeed: 0.003
+            radius: 1.6, color: 0xc1440e, rotationSpeed: 0.003, axialTilt: 25.19
         });
     }
 
     _createJupiter() {
         this._addPlanet('jupiter', {
-            radius: 6.5, color: 0xc8a87a, rotationSpeed: 0.006
+            radius: 6.5, color: 0xc8a87a, rotationSpeed: 0.006, axialTilt: 3.13
         });
     }
 
@@ -256,19 +260,19 @@ export class SolarSystemRenderer {
         ring.rotation.x = Math.PI * 0.45;
 
         this._addPlanet('saturn', {
-            radius: 5.5, color: 0xd4b86a, rotationSpeed: 0.005, extras: [ring]
+            radius: 5.5, color: 0xd4b86a, rotationSpeed: 0.005, axialTilt: 26.73, extras: [ring]
         });
     }
 
     _createUranus() {
         this._addPlanet('uranus', {
-            radius: 4, color: 0x7ec8c8, rotationSpeed: -0.004
+            radius: 4, color: 0x7ec8c8, rotationSpeed: -0.004, axialTilt: 97.77
         });
     }
 
     _createNeptune() {
         this._addPlanet('neptune', {
-            radius: 3.8, color: 0x3344aa, rotationSpeed: 0.004
+            radius: 3.8, color: 0x3344aa, rotationSpeed: 0.004, axialTilt: 28.32
         });
     }
 
@@ -327,7 +331,7 @@ export class SolarSystemRenderer {
         for (const [, planet] of this.planets) {
             const pos = computeOrbitalPosition(planet.elements, this.gameYear);
             planet.mesh.position.set(pos.x, pos.y, pos.z);
-            planet.mesh.rotation.y += planet.rotationSpeed;
+            planet.mesh.rotateOnAxis(planet.rotationAxis, planet.rotationSpeed);
 
             // Move extras (atmosphere, rings) to follow planet
             for (const extra of planet.extras) {
