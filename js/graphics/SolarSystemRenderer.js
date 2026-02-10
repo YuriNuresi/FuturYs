@@ -209,36 +209,48 @@ export class SolarSystemRenderer {
 
     // --- Planets ---
 
-    _addPlanet(name, { radius, color, rotationSpeed, axialTilt, extras }) {
+    /**
+     * @param {string} name
+     * @param {object} opts
+     * @param {number} opts.radius - sphere radius
+     * @param {number} opts.color - hex color
+     * @param {number} opts.rotationPeriod - sidereal rotation period in Earth hours (negative = retrograde)
+     * @param {number} opts.axialTilt - axial tilt in degrees
+     * @param {THREE.Mesh[]} [opts.extras] - extra meshes (atmosphere, rings)
+     */
+    _addPlanet(name, { radius, color, rotationPeriod, axialTilt, extras }) {
         const geo = new THREE.SphereGeometry(radius, 32, 32);
         const mat = new THREE.MeshStandardMaterial({ color, roughness: 0.8, metalness: 0.1 });
         const mesh = new THREE.Mesh(geo, mat);
         mesh.name = name;
         this.scene.add(mesh);
 
-        // Extra meshes (atmosphere, rings) that follow the planet
         const extraMeshes = extras || [];
         extraMeshes.forEach(m => this.scene.add(m));
 
-        // Pre-compute tilted rotation axis from axial tilt
+        // Pre-compute tilted rotation axis
         const tilt = degToRad(axialTilt || 0);
         const rotationAxis = new THREE.Vector3(Math.sin(tilt), Math.cos(tilt), 0).normalize();
 
+        // Rotations per game year = (365.25 * 24) / |rotationPeriod|
+        // Sign of rotationPeriod handles retrograde
+        const rotationsPerYear = (365.25 * 24) / rotationPeriod;
+
         this.planets.set(name, {
-            mesh, extras: extraMeshes, rotationSpeed, rotationAxis,
+            mesh, extras: extraMeshes, rotationAxis, rotationsPerYear,
             elements: ORBITAL_ELEMENTS[name]
         });
     }
 
     _createMercury() {
         this._addPlanet('mercury', {
-            radius: 1.2, color: 0x8c7e6d, rotationSpeed: 0.002, axialTilt: 0.034
+            radius: 1.2, color: 0x8c7e6d, rotationPeriod: 1407.6, axialTilt: 0.034
         });
     }
 
     _createVenus() {
         this._addPlanet('venus', {
-            radius: 2.8, color: 0xe8cda0, rotationSpeed: -0.0005, axialTilt: 177.4
+            radius: 2.8, color: 0xe8cda0, rotationPeriod: -5832.5, axialTilt: 177.4
         });
     }
 
@@ -250,19 +262,19 @@ export class SolarSystemRenderer {
         const atmosphere = new THREE.Mesh(atmoGeo, atmoMat);
 
         this._addPlanet('earth', {
-            radius: 3, color: 0x2266aa, rotationSpeed: 0.003, axialTilt: 23.44, extras: [atmosphere]
+            radius: 3, color: 0x2266aa, rotationPeriod: 23.93, axialTilt: 23.44, extras: [atmosphere]
         });
     }
 
     _createMars() {
         this._addPlanet('mars', {
-            radius: 1.6, color: 0xc1440e, rotationSpeed: 0.003, axialTilt: 25.19
+            radius: 1.6, color: 0xc1440e, rotationPeriod: 24.62, axialTilt: 25.19
         });
     }
 
     _createJupiter() {
         this._addPlanet('jupiter', {
-            radius: 6.5, color: 0xc8a87a, rotationSpeed: 0.006, axialTilt: 3.13
+            radius: 6.5, color: 0xc8a87a, rotationPeriod: 9.93, axialTilt: 3.13
         });
     }
 
@@ -275,19 +287,19 @@ export class SolarSystemRenderer {
         ring.rotation.x = Math.PI * 0.45;
 
         this._addPlanet('saturn', {
-            radius: 5.5, color: 0xd4b86a, rotationSpeed: 0.005, axialTilt: 26.73, extras: [ring]
+            radius: 5.5, color: 0xd4b86a, rotationPeriod: 10.66, axialTilt: 26.73, extras: [ring]
         });
     }
 
     _createUranus() {
         this._addPlanet('uranus', {
-            radius: 4, color: 0x7ec8c8, rotationSpeed: -0.004, axialTilt: 97.77
+            radius: 4, color: 0x7ec8c8, rotationPeriod: -17.24, axialTilt: 97.77
         });
     }
 
     _createNeptune() {
         this._addPlanet('neptune', {
-            radius: 3.8, color: 0x3344aa, rotationSpeed: 0.004, axialTilt: 28.32
+            radius: 3.8, color: 0x3344aa, rotationPeriod: 16.11, axialTilt: 28.32
         });
     }
 
@@ -347,11 +359,17 @@ export class SolarSystemRenderer {
             this.sun.rotation.y += 0.001;
         }
 
-        // Update planet positions from Keplerian orbits
+        // Update planet positions and rotations from game time
+        const TWO_PI = Math.PI * 2;
         for (const [, planet] of this.planets) {
+            // Orbital position from Keplerian elements
             const pos = computeOrbitalPosition(planet.elements, this.gameYear);
             planet.mesh.position.set(pos.x, pos.y, pos.z);
-            planet.mesh.rotateOnAxis(planet.rotationAxis, planet.rotationSpeed);
+
+            // Self-rotation: absolute angle from game year
+            // rotationsPerYear * gameYear * 2π = total angle
+            const angle = planet.rotationsPerYear * this.gameYear * TWO_PI;
+            planet.mesh.quaternion.setFromAxisAngle(planet.rotationAxis, angle);
 
             // Move extras (atmosphere, rings) to follow planet
             for (const extra of planet.extras) {

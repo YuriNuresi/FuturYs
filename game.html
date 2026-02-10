@@ -43,7 +43,7 @@
 
     <div id="hud">
         <h2>FuturY</h2>
-        <div class="year">Anno <span id="game-year">2100</span></div>
+        <div class="year">Anno <span id="game-year">2100</span> <span id="game-date" style="color: #4fd1c7; font-size: 16px;">(gen-01)</span></div>
         <div class="controls-hint">
             Click + trascina: ruota<br>
             Scroll: zoom<br>
@@ -61,7 +61,21 @@
         const startYear = 2100;
         const startTime = performance.now();
         const yearEl = document.getElementById('game-year');
+        const dateEl = document.getElementById('game-date');
         const SECONDS_PER_GAME_YEAR = 86400; // 24h real = 1 year in game
+
+        const MONTHS = ['gen','feb','mar','apr','mag','giu','lug','ago','set','ott','nov','dic'];
+        const DAYS_IN_MONTH = [31,28,31,30,31,30,31,31,30,31,30,31];
+
+        function yearFractionToDate(fraction) {
+            let dayOfYear = Math.floor(fraction * 365);
+            let month = 0;
+            while (month < 11 && dayOfYear >= DAYS_IN_MONTH[month]) {
+                dayOfYear -= DAYS_IN_MONTH[month];
+                month++;
+            }
+            return `(${MONTHS[month]}-${String(dayOfYear + 1).padStart(2, '0')})`;
+        }
 
         function animate() {
             requestAnimationFrame(animate);
@@ -69,7 +83,11 @@
             const elapsedSeconds = (performance.now() - startTime) / 1000;
             const gameYear = startYear + elapsedSeconds / SECONDS_PER_GAME_YEAR;
             renderer.setGameYear(gameYear);
-            yearEl.textContent = Math.floor(gameYear);
+
+            const yearInt = Math.floor(gameYear);
+            const fraction = gameYear - yearInt;
+            yearEl.textContent = yearInt;
+            dateEl.textContent = yearFractionToDate(fraction);
 
             renderer.render();
         }
