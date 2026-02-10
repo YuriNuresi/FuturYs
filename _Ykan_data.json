@@ -290,7 +290,7 @@
         {
             "id": "card_103",
             "title": "Create Mercury with texture",
-            "description": "Primo pianeta roccioso",
+            "description": "Primo pianeta roccioso - texture procedurale (crateri)",
             "column_id": "col_3",
             "swimlane_id": "lane_2",
             "labels": ["lbl_2"],
@@ -302,7 +302,7 @@
         {
             "id": "card_104",
             "title": "Create Venus with texture",
-            "description": "Secondo pianeta roccioso",
+            "description": "Secondo pianeta roccioso - texture procedurale (nubi dense)",
             "column_id": "col_3",
             "swimlane_id": "lane_2",
             "labels": ["lbl_2"],
@@ -314,7 +314,7 @@
         {
             "id": "card_105",
             "title": "Create Earth with texture",
-            "description": "Pianeta di partenza con dettagli",
+            "description": "Pianeta di partenza - texture procedurale (continenti/oceani)",
             "column_id": "col_3",
             "swimlane_id": "lane_2",
             "labels": ["lbl_2"],
@@ -326,7 +326,7 @@
         {
             "id": "card_106",
             "title": "Create Mars with texture",
-            "description": "Primo obiettivo colonizzazione",
+            "description": "Primo obiettivo colonizzazione - texture procedurale (terreno/calotte polari)",
             "column_id": "col_3",
             "swimlane_id": "lane_2",
             "labels": ["lbl_2"],
@@ -338,7 +338,7 @@
         {
             "id": "card_107",
             "title": "Create Jupiter with texture",
-            "description": "Gigante gassoso",
+            "description": "Gigante gassoso - texture procedurale (bande/Grande Macchia Rossa)",
             "column_id": "col_3",
             "swimlane_id": "lane_2",
             "labels": ["lbl_2"],
@@ -350,7 +350,7 @@
         {
             "id": "card_108",
             "title": "Create Saturn with rings",
-            "description": "Gigante gassoso con anelli distintivi",
+            "description": "Gigante gassoso con anelli - texture procedurale (bande/anelli)",
             "column_id": "col_3",
             "swimlane_id": "lane_2",
             "labels": ["lbl_2"],
@@ -362,7 +362,7 @@
         {
             "id": "card_109",
             "title": "Create Uranus with texture",
-            "description": "Gigante ghiacciato",
+            "description": "Gigante ghiacciato - texture procedurale (bande sottili)",
             "column_id": "col_3",
             "swimlane_id": "lane_2",
             "labels": ["lbl_2"],
@@ -374,7 +374,7 @@
         {
             "id": "card_110",
             "title": "Create Neptune with texture",
-            "description": "Pianeta più esterno",
+            "description": "Pianeta più esterno - texture procedurale (bande blu/macchia scura)",
             "column_id": "col_3",
             "swimlane_id": "lane_2",
             "labels": ["lbl_2"],
