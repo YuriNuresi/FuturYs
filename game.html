@@ -57,17 +57,17 @@
         const renderer = new SolarSystemRenderer('solar-system-canvas');
         await renderer.init();
 
-        // Simulate game time: advance ~1 game year every 24 real seconds (accelerated for testing)
+        // Game time: 1 game year (365 days) = 24 real hours (86400 seconds)
         const startYear = 2100;
         const startTime = performance.now();
         const yearEl = document.getElementById('game-year');
+        const SECONDS_PER_GAME_YEAR = 86400; // 24h real = 1 year in game
 
         function animate() {
             requestAnimationFrame(animate);
 
-            // 1 real second = ~1 game year (for visual testing)
-            const elapsed = (performance.now() - startTime) / 1000;
-            const gameYear = startYear + elapsed;
+            const elapsedSeconds = (performance.now() - startTime) / 1000;
+            const gameYear = startYear + elapsedSeconds / SECONDS_PER_GAME_YEAR;
             renderer.setGameYear(gameYear);
             yearEl.textContent = Math.floor(gameYear);
 
