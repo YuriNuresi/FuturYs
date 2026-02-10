@@ -36,6 +36,24 @@
             font-size: 12px;
             line-height: 1.6;
         }
+        #hud .selected-planet {
+            margin-top: 16px;
+            padding: 10px 14px;
+            background: rgba(79, 209, 199, 0.1);
+            border: 1px solid rgba(79, 209, 199, 0.3);
+            border-radius: 8px;
+            display: none;
+        }
+        #hud .selected-planet .planet-name {
+            font-size: 18px;
+            color: #fff;
+            text-transform: capitalize;
+        }
+        #hud .selected-planet .planet-hint {
+            font-size: 11px;
+            color: #667;
+            margin-top: 4px;
+        }
     </style>
 </head>
 <body>
@@ -47,7 +65,12 @@
         <div class="controls-hint">
             Click + trascina: ruota<br>
             Scroll: zoom<br>
-            Click destro + trascina: pan
+            Click destro + trascina: pan<br>
+            Click su pianeta: seleziona
+        </div>
+        <div class="selected-planet" id="selected-planet">
+            <div class="planet-name" id="selected-planet-name"></div>
+            <div class="planet-hint">Click altrove per deselezionare</div>
         </div>
     </div>
 
@@ -56,6 +79,18 @@
 
         const renderer = new SolarSystemRenderer('solar-system-canvas');
         await renderer.init();
+
+        // Planet selection HUD
+        const selBox = document.getElementById('selected-planet');
+        const selName = document.getElementById('selected-planet-name');
+        renderer.onPlanetClick = (name) => {
+            if (name) {
+                selName.textContent = name;
+                selBox.style.display = 'block';
+            } else {
+                selBox.style.display = 'none';
+            }
+        };
 
         // Game time: 1 game year (365 days) = 24 real hours (86400 seconds)
         const startYear = 2100;
