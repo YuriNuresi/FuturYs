@@ -214,6 +214,18 @@
 
         await renderer.init();
 
+        // Planet selection HUD
+        const selBox = document.getElementById('selected-planet');
+        const selName = document.getElementById('selected-planet-name');
+        renderer.onPlanetClick = (name) => {
+            if (name) {
+                selName.textContent = name;
+                selBox.style.display = 'block';
+            } else {
+                selBox.style.display = 'none';
+            }
+        };
+
         // Game time: 1 game year (365 days) = 24 real hours (86400 seconds)
         const startYear = 2100;
         const startTime = performance.now();
