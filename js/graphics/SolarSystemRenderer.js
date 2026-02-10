@@ -1,7 +1,7 @@
 /**
  * SolarSystemRenderer - 3D Solar System Scene (Three.js)
  * Keplerian orbital mechanics with NASA JPL elements (J2000.0 epoch)
- * @version 3.0.0
+ * @version 4.0.0
  */
 
 import * as THREE from 'three';
@@ -20,6 +20,14 @@ const ORBITAL_ELEMENTS = {
     saturn:  { a: 9.55491, e: 0.05551, I: 2.489, L0: 50.077, wbar: 93.057, omega: 113.666, period: 29.4571 },
     uranus:  { a: 19.1817, e: 0.04686, I: 0.773, L0: 314.055, wbar: 173.005, omega: 74.006, period: 84.0110 },
     neptune: { a: 30.0690, e: 0.00895, I: 1.770, L0: 304.349, wbar: 48.124, omega: 131.784, period: 164.790 }
+};
+
+// Geometry segments by planet size tier (small, medium, large)
+const SEGMENTS = { small: 24, medium: 32, large: 40 };
+const PLANET_SEGMENTS = {
+    mercury: SEGMENTS.small, venus: SEGMENTS.medium, earth: SEGMENTS.medium,
+    mars: SEGMENTS.small, jupiter: SEGMENTS.large, saturn: SEGMENTS.large,
+    uranus: SEGMENTS.medium, neptune: SEGMENTS.medium
 };
 
 // Distance scaling: compress AU to scene units so all planets are visible
@@ -52,29 +60,15 @@ function solveKepler(M, e) {
 }
 
 /**
- * Compute heliocentric position for given orbital elements and year
- * Returns {x, y, z} in scene units
+ * Pre-compute the constant rotation matrix coefficients for each planet.
+ * These depend only on orbital elements (wbar, omega, I) which are fixed.
+ * Returns { Ax, Bx, Ay, By, Az, Bz, n, L0, e, scale } where:
+ *   x = Ax*xPrime + Bx*yPrime, etc.  (in scene units)
  */
-function computeOrbitalPosition(elements, year) {
+function precomputeOrbitalCoeffs(elements) {
     const { a, e, I, L0, wbar, omega, period } = elements;
 
-    // Mean longitude at given year
-    const n = 360 / period; // mean motion (deg/year)
-    const dt = year - 2000.0;
-    const L = (L0 + n * dt) % 360;
-
-    // Mean anomaly
-    const M = degToRad(((L - wbar) % 360 + 360) % 360);
-
-    // Solve Kepler's equation
-    const E = solveKepler(M, e);
-
-    // Position in orbital plane
-    const xPrime = a * (Math.cos(E) - e);
-    const yPrime = a * Math.sqrt(1 - e * e) * Math.sin(E);
-
-    // Rotate to heliocentric ecliptic coordinates
-    const w = degToRad(wbar - omega); // argument of perihelion
+    const w = degToRad(wbar - omega);
     const Om = degToRad(omega);
     const inc = degToRad(I);
 
@@ -82,17 +76,55 @@ function computeOrbitalPosition(elements, year) {
     const cosOm = Math.cos(Om), sinOm = Math.sin(Om);
     const cosI = Math.cos(inc), sinI = Math.sin(inc);
 
-    const x = (cosW * cosOm - sinW * sinOm * cosI) * xPrime +
-              (-sinW * cosOm - cosW * sinOm * cosI) * yPrime;
-    const y = (cosW * sinOm + sinW * cosOm * cosI) * xPrime +
-              (-sinW * sinOm + cosW * cosOm * cosI) * yPrime;
-    const z = (sinW * sinI) * xPrime + (cosW * sinI) * yPrime;
+    const scale = auToScene(a) / a;
 
-    // Scale to scene units
-    const scale = auToScene(a) / a; // uniform scale per planet
-    return { x: x * scale, y: z * scale, z: -y * scale }; // Y-up coordinate swap
+    // Ecliptic x,y,z coefficients (pre-scaled, with Y-up swap baked in)
+    return {
+        // scene X = ecliptic x * scale
+        Ax: (cosW * cosOm - sinW * sinOm * cosI) * scale,
+        Bx: (-sinW * cosOm - cosW * sinOm * cosI) * scale,
+        // scene Y = ecliptic z * scale  (Y-up swap)
+        Ay: (sinW * sinI) * scale,
+        By: (cosW * sinI) * scale,
+        // scene Z = -ecliptic y * scale  (Y-up swap)
+        Az: -(cosW * sinOm + sinW * cosOm * cosI) * scale,
+        Bz: -(-sinW * sinOm + cosW * cosOm * cosI) * scale,
+        n: 360 / period,   // mean motion (deg/year)
+        L0, wbar, e, a
+    };
 }
 
+// Pre-compute coefficients once at module load
+const ORBITAL_COEFFS = {};
+for (const name in ORBITAL_ELEMENTS) {
+    ORBITAL_COEFFS[name] = precomputeOrbitalCoeffs(ORBITAL_ELEMENTS[name]);
+}
+
+/**
+ * Compute heliocentric position using pre-computed coefficients.
+ * Only Kepler solve + 2 trig calls remain per frame.
+ */
+function computeOrbitalPosition(coeffs, year) {
+    const { Ax, Bx, Ay, By, Az, Bz, n, L0, wbar, e, a } = coeffs;
+
+    const dt = year - 2000.0;
+    const L = (L0 + n * dt) % 360;
+    const M = degToRad(((L - wbar) % 360 + 360) % 360);
+    const E = solveKepler(M, e);
+
+    const xPrime = a * (Math.cos(E) - e);
+    const yPrime = a * Math.sqrt(1 - e * e) * Math.sin(E);
+
+    return {
+        x: Ax * xPrime + Bx * yPrime,
+        y: Ay * xPrime + By * yPrime,
+        z: Az * xPrime + Bz * yPrime
+    };
+}
+
+
+// Orbital update interval: recompute Kepler every N frames (at 60fps → ~15 Hz)
+const ORBIT_UPDATE_EVERY = 4;
 
 export class SolarSystemRenderer {
     constructor(canvasId) {
@@ -103,7 +135,6 @@ export class SolarSystemRenderer {
         this.camera = null;
         this.renderer = null;
         this.controls = null;
-        this.clock = new THREE.Clock();
 
         // Scene objects
         this.planets = new Map();
@@ -113,7 +144,12 @@ export class SolarSystemRenderer {
         // Game time — updated externally by TimeManager
         this.gameYear = 2100;
 
-        this._boundResize = this._onWindowResize.bind(this);
+        // Performance: frame counter for throttled orbital updates
+        this._frameCount = 0;
+
+        // Debounced resize
+        this._resizeTimer = 0;
+        this._boundResize = this._onResizeDebounced.bind(this);
     }
 
     async init() {
@@ -216,29 +252,31 @@ export class SolarSystemRenderer {
      * @param {number} opts.color - hex color
      * @param {number} opts.rotationPeriod - sidereal rotation period in Earth hours (negative = retrograde)
      * @param {number} opts.axialTilt - axial tilt in degrees
-     * @param {THREE.Mesh[]} [opts.extras] - extra meshes (atmosphere, rings)
+     * @param {THREE.Mesh[]} [opts.extras] - extra meshes (atmosphere, rings) added to group
      */
     _addPlanet(name, { radius, color, rotationPeriod, axialTilt, extras }) {
-        const geo = new THREE.SphereGeometry(radius, 32, 32);
+        const segs = PLANET_SEGMENTS[name] || SEGMENTS.medium;
+        const geo = new THREE.SphereGeometry(radius, segs, segs);
         const mat = new THREE.MeshStandardMaterial({ color, roughness: 0.8, metalness: 0.1 });
         const mesh = new THREE.Mesh(geo, mat);
         mesh.name = name;
-        this.scene.add(mesh);
 
+        // Group planet + extras so position sync is automatic
+        const group = new THREE.Group();
+        group.add(mesh);
         const extraMeshes = extras || [];
-        extraMeshes.forEach(m => this.scene.add(m));
+        extraMeshes.forEach(m => group.add(m));
+        this.scene.add(group);
 
         // Pre-compute tilted rotation axis
         const tilt = degToRad(axialTilt || 0);
         const rotationAxis = new THREE.Vector3(Math.sin(tilt), Math.cos(tilt), 0).normalize();
 
-        // Rotations per game year = (365.25 * 24) / |rotationPeriod|
-        // Sign of rotationPeriod handles retrograde
         const rotationsPerYear = (365.25 * 24) / rotationPeriod;
 
         this.planets.set(name, {
-            mesh, extras: extraMeshes, rotationAxis, rotationsPerYear,
-            elements: ORBITAL_ELEMENTS[name]
+            mesh, group, rotationAxis, rotationsPerYear,
+            coeffs: ORBITAL_COEFFS[name]
         });
     }
 
@@ -445,11 +483,17 @@ export class SolarSystemRenderer {
         this.starfield = { layers: [bgStars, brightStars, milkyWay] };
     }
 
-    // --- Resize ---
+    // --- Resize (debounced) ---
 
-    _onWindowResize() {
+    _onResizeDebounced() {
+        clearTimeout(this._resizeTimer);
+        this._resizeTimer = setTimeout(() => this._applyResize(), 150);
+    }
+
+    _applyResize() {
         const width = this.canvas.clientWidth;
         const height = this.canvas.clientHeight;
+        if (width === 0 || height === 0) return;
         this.camera.aspect = width / height;
         this.camera.updateProjectionMatrix();
         this.renderer.setSize(width, height);
@@ -468,32 +512,26 @@ export class SolarSystemRenderer {
     render() {
         if (!this.renderer) return;
 
-        // Update controls (damping)
-        if (this.controls) {
-            this.controls.update();
-        }
+        this.controls?.update();
 
-        // Sun rotation
         if (this.sun) {
             this.sun.rotation.y += 0.001;
         }
 
-        // Update planet positions and rotations from game time
+        this._frameCount++;
+        const updateOrbits = (this._frameCount % ORBIT_UPDATE_EVERY) === 0;
         const TWO_PI = Math.PI * 2;
-        for (const [, planet] of this.planets) {
-            // Orbital position from Keplerian elements
-            const pos = computeOrbitalPosition(planet.elements, this.gameYear);
-            planet.mesh.position.set(pos.x, pos.y, pos.z);
 
-            // Self-rotation: absolute angle from game year
-            // rotationsPerYear * gameYear * 2π = total angle
+        for (const [, planet] of this.planets) {
+            // Orbital position — throttled (Kepler solve is expensive)
+            if (updateOrbits) {
+                const pos = computeOrbitalPosition(planet.coeffs, this.gameYear);
+                planet.group.position.set(pos.x, pos.y, pos.z);
+            }
+
+            // Self-rotation — cheap, update every frame for smoothness
             const angle = planet.rotationsPerYear * this.gameYear * TWO_PI;
             planet.mesh.quaternion.setFromAxisAngle(planet.rotationAxis, angle);
-
-            // Move extras (atmosphere, rings) to follow planet
-            for (const extra of planet.extras) {
-                extra.position.set(pos.x, pos.y, pos.z);
-            }
         }
 
         this.renderer.render(this.scene, this.camera);
@@ -501,6 +539,9 @@ export class SolarSystemRenderer {
 
     dispose() {
         window.removeEventListener('resize', this._boundResize);
+        clearTimeout(this._resizeTimer);
+
+        // Dispose starfield layers
         if (this.starfield?.layers) {
             for (const layer of this.starfield.layers) {
                 layer.geometry.dispose();
@@ -508,6 +549,14 @@ export class SolarSystemRenderer {
                 this.scene.remove(layer);
             }
         }
+
+        // Dispose planet meshes
+        for (const [, planet] of this.planets) {
+            planet.mesh.geometry.dispose();
+            planet.mesh.material.dispose();
+            this.scene.remove(planet.group);
+        }
+
         this.controls?.dispose();
         this.renderer?.dispose();
     }
