@@ -2,7 +2,10 @@
  * SolarSystemRenderer - 3D Solar System Scene (Three.js)
  * Keplerian orbital mechanics with NASA JPL elements (J2000.0 epoch)
  * @version 4.0.0
+ * TEST_MARKER_2025_02_10_v2 - Se vedi questo marker in console, stai leggendo il file corretto!
  */
+
+console.log('✓ SolarSystemRenderer CORRETTO caricato - NO seededRandom duplicato!');
 
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
