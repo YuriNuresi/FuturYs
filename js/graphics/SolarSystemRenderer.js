@@ -31,6 +31,10 @@ export class SolarSystemRenderer {
         this._setupCamera();
         this._setupLighting();
         this._createSun();
+        this._createMercury();
+        this._createVenus();
+        this._createEarth();
+        this._createMars();
         this._createStarfield();
 
         window.addEventListener('resize', this._boundResize);
@@ -106,6 +110,101 @@ export class SolarSystemRenderer {
         this.scene.add(this.sun);
     }
 
+    // --- Planets ---
+
+    /**
+     * Helper: add a planet to the scene
+     * @param {string} name - Planet identifier
+     * @param {object} opts - { radius, color, distance, orbitalSpeed, rotationSpeed }
+     */
+    _addPlanet(name, { radius, color, distance, orbitalSpeed, rotationSpeed }) {
+        // Pivot group for orbital movement
+        const pivot = new THREE.Group();
+
+        // Planet mesh — lit by the Sun's PointLight
+        const geo = new THREE.SphereGeometry(radius, 32, 32);
+        const mat = new THREE.MeshStandardMaterial({
+            color,
+            roughness: 0.8,
+            metalness: 0.1
+        });
+        const mesh = new THREE.Mesh(geo, mat);
+        mesh.position.x = distance;
+        mesh.name = name;
+        pivot.add(mesh);
+
+        this.scene.add(pivot);
+        this.planets.set(name, { mesh, pivot, distance, orbitalSpeed, rotationSpeed });
+    }
+
+    _createMercury() {
+        this._addPlanet('mercury', {
+            radius: 1.2,
+            color: 0x8c7e6d,
+            distance: 25,
+            orbitalSpeed: 0.004,
+            rotationSpeed: 0.002
+        });
+    }
+
+    _createEarth() {
+        // Pivot for orbit
+        const pivot = new THREE.Group();
+
+        // Earth sphere
+        const geo = new THREE.SphereGeometry(3, 64, 64);
+        const mat = new THREE.MeshStandardMaterial({
+            color: 0x2266aa,
+            roughness: 0.7,
+            metalness: 0.1
+        });
+        const mesh = new THREE.Mesh(geo, mat);
+        mesh.position.x = 55;
+        mesh.name = 'earth';
+
+        // Atmosphere glow
+        const atmoGeo = new THREE.SphereGeometry(3.3, 32, 32);
+        const atmoMat = new THREE.MeshBasicMaterial({
+            color: 0x88bbff,
+            transparent: true,
+            opacity: 0.15,
+            side: THREE.BackSide
+        });
+        const atmosphere = new THREE.Mesh(atmoGeo, atmoMat);
+        atmosphere.position.copy(mesh.position);
+
+        pivot.add(mesh);
+        pivot.add(atmosphere);
+        this.scene.add(pivot);
+
+        this.planets.set('earth', {
+            mesh, pivot,
+            distance: 55,
+            orbitalSpeed: 0.001,
+            rotationSpeed: 0.003
+        });
+    }
+
+    _createMars() {
+        this._addPlanet('mars', {
+            radius: 1.6,
+            color: 0xc1440e,
+            distance: 75,
+            orbitalSpeed: 0.0008,
+            rotationSpeed: 0.003
+        });
+    }
+
+    _createVenus() {
+        this._addPlanet('venus', {
+            radius: 2.8,
+            color: 0xe8cda0,
+            distance: 40,
+            orbitalSpeed: 0.0015,
+            rotationSpeed: -0.0005  // retrograde rotation
+        });
+    }
+
     _createStarfield() {
         const count = 2000;
         const positions = new Float32Array(count * 3);
@@ -154,6 +253,12 @@ export class SolarSystemRenderer {
         // Slow sun rotation
         if (this.sun) {
             this.sun.rotation.y += 0.001;
+        }
+
+        // Animate planets: orbit around sun + self rotation
+        for (const [, planet] of this.planets) {
+            planet.pivot.rotation.y += planet.orbitalSpeed;
+            planet.mesh.rotation.y += planet.rotationSpeed;
         }
 
         this.renderer.render(this.scene, this.camera);
