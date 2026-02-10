@@ -144,28 +144,15 @@ export class SolarSystemRenderer {
         this.sun = null;
         this.starfield = null;
 
-        // Raycasting / interaction
-        this._raycaster = new THREE.Raycaster();
-        this._mouse = new THREE.Vector2();
-        this._pointerDown = null;        // {x,y} at pointerdown
-        this.selectedPlanet = null;       // planet name or null
-        this._hoveredPlanet = null;       // planet name or null
-        this._selectionRing = null;       // visual indicator
+        // Raycaster for planet selection
+        this.raycaster = new THREE.Raycaster();
+        this.mouse = new THREE.Vector2();
 
         // Game time — updated externally by TimeManager
         this.gameYear = 2100;
 
-        // Performance: frame counter for throttled orbital updates
-        this._frameCount = 0;
-
-        // Debounced resize
-        this._resizeTimer = 0;
-        this._boundResize = this._onResizeDebounced.bind(this);
-
-        // Interaction listeners (bound for cleanup)
-        this._boundPointerDown = this._onPointerDown.bind(this);
-        this._boundPointerUp = this._onPointerUp.bind(this);
-        this._boundPointerMove = this._onPointerMove.bind(this);
+        this._boundResize = this._onWindowResize.bind(this);
+        this._boundClick = this._onCanvasClick.bind(this);
     }
 
     async init() {
@@ -188,6 +175,7 @@ export class SolarSystemRenderer {
         this._setupInteraction();
 
         window.addEventListener('resize', this._boundResize);
+        this.canvas.addEventListener('click', this._boundClick);
 
         console.log('Solar System scene ready');
     }
@@ -667,29 +655,95 @@ export class SolarSystemRenderer {
         this.renderer.render(this.scene, this.camera);
     }
 
-    dispose() {
-        window.removeEventListener('resize', this._boundResize);
-        this.canvas.removeEventListener('pointerdown', this._boundPointerDown);
-        this.canvas.removeEventListener('pointerup', this._boundPointerUp);
-        this.canvas.removeEventListener('pointermove', this._boundPointerMove);
-        clearTimeout(this._resizeTimer);
+    /**
+     * Handle canvas click to select planets
+     */
+    _onCanvasClick(event) {
+        // Calculate normalized device coordinates (-1 to +1)
+        const rect = this.canvas.getBoundingClientRect();
+        this.mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+        this.mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
 
-        // Dispose starfield layers
-        if (this.starfield?.layers) {
-            for (const layer of this.starfield.layers) {
-                layer.geometry.dispose();
-                layer.material.dispose();
-                this.scene.remove(layer);
+        // Update the raycaster
+        this.raycaster.setFromCamera(this.mouse, this.camera);
+
+        // Get all planet meshes
+        const planetMeshes = Array.from(this.planets.values()).map(p => p.mesh);
+
+        // Check for intersections
+        const intersects = this.raycaster.intersectObjects(planetMeshes, false);
+
+        if (intersects.length > 0) {
+            const clickedMesh = intersects[0].object;
+            const planetName = clickedMesh.name;
+            const planetData = this.planets.get(planetName);
+
+            if (planetData && this.onPlanetClick) {
+                // Get planet info
+                const planetInfo = this._getPlanetInfo(planetName, planetData);
+                this.onPlanetClick(planetInfo);
             }
         }
+    }
 
-        // Dispose planet meshes
-        for (const [, planet] of this.planets) {
-            planet.mesh.geometry.dispose();
-            planet.mesh.material.dispose();
-            this.scene.remove(planet.group);
-        }
+    /**
+     * Get detailed information about a planet
+     */
+    _getPlanetInfo(name, planetData) {
+        const { elements } = planetData;
+        const pos = computeOrbitalPosition(elements, this.gameYear);
 
+        // Calculate distance from Earth
+        const earthData = this.planets.get('earth');
+        const earthPos = computeOrbitalPosition(earthData.elements, this.gameYear);
+        const dx = pos.x - earthPos.x;
+        const dy = pos.y - earthPos.y;
+        const dz = pos.z - earthPos.z;
+        const distanceFromEarth = Math.sqrt(dx * dx + dy * dy + dz * dz);
+
+        // Distance from Sun in AU
+        const distanceFromSun = elements.a;
+
+        // Estimated travel time (simplified: assuming constant velocity of 50,000 km/h)
+        // Convert scene units back to AU, then to km, then calculate time
+        const distanceAU = distanceFromEarth * elements.a / auToScene(elements.a);
+        const distanceKm = distanceAU * 149597870.7; // 1 AU in km
+        const velocityKmH = 50000;
+        const travelTimeHours = distanceKm / velocityKmH;
+        const travelTimeDays = travelTimeHours / 24;
+
+        // Planet data
+        const planetDetails = {
+            mercury: { mass: '3.3×10²³ kg', diameter: '4,879 km', type: 'Rocky', moons: 0, description: 'Closest planet to the Sun, extreme temperatures' },
+            venus: { mass: '4.87×10²⁴ kg', diameter: '12,104 km', type: 'Rocky', moons: 0, description: 'Hottest planet, thick toxic atmosphere' },
+            earth: { mass: '5.97×10²⁴ kg', diameter: '12,742 km', type: 'Rocky', moons: 1, description: 'Our home planet, only known planet with life' },
+            mars: { mass: '6.42×10²³ kg', diameter: '6,779 km', type: 'Rocky', moons: 2, description: 'The Red Planet, target for colonization' },
+            jupiter: { mass: '1.90×10²⁷ kg', diameter: '139,820 km', type: 'Gas Giant', moons: 95, description: 'Largest planet, powerful magnetic field' },
+            saturn: { mass: '5.68×10²⁶ kg', diameter: '116,460 km', type: 'Gas Giant', moons: 146, description: 'Famous for its spectacular ring system' },
+            uranus: { mass: '8.68×10²⁵ kg', diameter: '50,724 km', type: 'Ice Giant', moons: 28, description: 'Tilted on its side, pale blue color' },
+            neptune: { mass: '1.02×10²⁶ kg', diameter: '49,244 km', type: 'Ice Giant', moons: 16, description: 'Windiest planet, deep blue color' }
+        };
+
+        const details = planetDetails[name] || {};
+
+        return {
+            name: name.charAt(0).toUpperCase() + name.slice(1),
+            mass: details.mass,
+            diameter: details.diameter,
+            type: details.type,
+            moons: details.moons,
+            description: details.description,
+            distanceFromSun: distanceFromSun.toFixed(2) + ' AU',
+            distanceFromEarth: distanceAU.toFixed(2) + ' AU',
+            travelTime: travelTimeDays.toFixed(1) + ' days',
+            orbitalPeriod: elements.period.toFixed(2) + ' years',
+            eccentricity: elements.e.toFixed(3)
+        };
+    }
+
+    dispose() {
+        window.removeEventListener('resize', this._boundResize);
+        this.canvas.removeEventListener('click', this._boundClick);
         this.controls?.dispose();
         this.renderer?.dispose();
     }
