@@ -387,7 +387,7 @@
             "id": "card_111",
             "title": "Implement orbital mechanics",
             "description": "Orbite ellittiche scalate per gameplay",
-            "column_id": "col_1",
+            "column_id": "col_3",
             "swimlane_id": "lane_2",
             "labels": ["lbl_2"],
             "priority": "medium",

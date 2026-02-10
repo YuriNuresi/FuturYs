@@ -1,10 +1,97 @@
 /**
  * SolarSystemRenderer - 3D Solar System Scene (Three.js)
- * card_101: Initialize Three.js scene with lighting, camera, resize handler
- * @version 2.0.0
+ * Keplerian orbital mechanics with NASA JPL elements (J2000.0 epoch)
+ * @version 3.0.0
  */
 
 import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js';
+
+// --- Orbital Elements (NASA JPL, epoch J2000.0 = 1 Jan 2000 12:00 TT) ---
+// a = semi-major axis (AU), e = eccentricity, I = inclination (deg),
+// L0 = mean longitude at epoch (deg), wbar = longitude of perihelion (deg),
+// omega = longitude of ascending node (deg), period = orbital period (years)
+const ORBITAL_ELEMENTS = {
+    mercury: { a: 0.38710, e: 0.20563, I: 7.005, L0: 252.251, wbar: 77.456, omega: 48.331, period: 0.24085 },
+    venus:   { a: 0.72333, e: 0.00677, I: 3.395, L0: 181.980, wbar: 131.564, omega: 76.680, period: 0.61520 },
+    earth:   { a: 1.00000, e: 0.01671, I: 0.000, L0: 100.464, wbar: 102.937, omega: 0.000, period: 1.00000 },
+    mars:    { a: 1.52368, e: 0.09340, I: 1.850, L0: 355.453, wbar: 336.060, omega: 49.558, period: 1.88082 },
+    jupiter: { a: 5.20260, e: 0.04849, I: 1.303, L0: 34.404, wbar: 14.331, omega: 100.464, period: 11.8622 },
+    saturn:  { a: 9.55491, e: 0.05551, I: 2.489, L0: 50.077, wbar: 93.057, omega: 113.666, period: 29.4571 },
+    uranus:  { a: 19.1817, e: 0.04686, I: 0.773, L0: 314.055, wbar: 173.005, omega: 74.006, period: 84.0110 },
+    neptune: { a: 30.0690, e: 0.00895, I: 1.770, L0: 304.349, wbar: 48.124, omega: 131.784, period: 164.790 }
+};
+
+// Distance scaling: compress AU to scene units so all planets are visible
+const DIST_BASE = 18;
+const DIST_SCALE = 28;
+const DIST_POWER = 0.45;
+
+function auToScene(au) {
+    return DIST_BASE + DIST_SCALE * Math.pow(au, DIST_POWER);
+}
+
+function degToRad(deg) {
+    return deg * Math.PI / 180;
+}
+
+/**
+ * Solve Kepler's equation  M = E - e*sin(E)  via Newton-Raphson
+ * @param {number} M - mean anomaly (radians)
+ * @param {number} e - eccentricity
+ * @returns {number} E - eccentric anomaly (radians)
+ */
+function solveKepler(M, e) {
+    let E = M;
+    for (let i = 0; i < 20; i++) {
+        const dE = (E - e * Math.sin(E) - M) / (1 - e * Math.cos(E));
+        E -= dE;
+        if (Math.abs(dE) < 1e-10) break;
+    }
+    return E;
+}
+
+/**
+ * Compute heliocentric position for given orbital elements and year
+ * Returns {x, y, z} in scene units
+ */
+function computeOrbitalPosition(elements, year) {
+    const { a, e, I, L0, wbar, omega, period } = elements;
+
+    // Mean longitude at given year
+    const n = 360 / period; // mean motion (deg/year)
+    const dt = year - 2000.0;
+    const L = (L0 + n * dt) % 360;
+
+    // Mean anomaly
+    const M = degToRad(((L - wbar) % 360 + 360) % 360);
+
+    // Solve Kepler's equation
+    const E = solveKepler(M, e);
+
+    // Position in orbital plane
+    const xPrime = a * (Math.cos(E) - e);
+    const yPrime = a * Math.sqrt(1 - e * e) * Math.sin(E);
+
+    // Rotate to heliocentric ecliptic coordinates
+    const w = degToRad(wbar - omega); // argument of perihelion
+    const Om = degToRad(omega);
+    const inc = degToRad(I);
+
+    const cosW = Math.cos(w), sinW = Math.sin(w);
+    const cosOm = Math.cos(Om), sinOm = Math.sin(Om);
+    const cosI = Math.cos(inc), sinI = Math.sin(inc);
+
+    const x = (cosW * cosOm - sinW * sinOm * cosI) * xPrime +
+              (-sinW * cosOm - cosW * sinOm * cosI) * yPrime;
+    const y = (cosW * sinOm + sinW * cosOm * cosI) * xPrime +
+              (-sinW * sinOm + cosW * cosOm * cosI) * yPrime;
+    const z = (sinW * sinI) * xPrime + (cosW * sinI) * yPrime;
+
+    // Scale to scene units
+    const scale = auToScene(a) / a; // uniform scale per planet
+    return { x: x * scale, y: z * scale, z: -y * scale }; // Y-up coordinate swap
+}
+
 
 export class SolarSystemRenderer {
     constructor(canvasId) {
@@ -20,6 +107,9 @@ export class SolarSystemRenderer {
         this.planets = new Map();
         this.sun = null;
         this.starfield = null;
+
+        // Game time — updated externally by TimeManager
+        this.gameYear = 2100;
 
         this._boundResize = this._onWindowResize.bind(this);
     }
@@ -71,11 +161,9 @@ export class SolarSystemRenderer {
     }
 
     _setupLighting() {
-        // Ambient light — faint fill so dark sides aren't pure black
         const ambient = new THREE.AmbientLight(0x111122, 0.3);
         this.scene.add(ambient);
 
-        // Sun point light — main light source at origin
         const sunLight = new THREE.PointLight(0xffffff, 2.0, 0, 0.5);
         sunLight.position.set(0, 0, 0);
         this.scene.add(sunLight);
@@ -84,29 +172,19 @@ export class SolarSystemRenderer {
     _createSun() {
         const sunGroup = new THREE.Group();
 
-        // Core sphere — self-lit, unaffected by scene lighting
         const coreGeo = new THREE.SphereGeometry(8, 64, 64);
         const coreMat = new THREE.MeshBasicMaterial({ color: 0xffdd44 });
-        const core = new THREE.Mesh(coreGeo, coreMat);
-        sunGroup.add(core);
+        sunGroup.add(new THREE.Mesh(coreGeo, coreMat));
 
-        // Inner glow layer
         const glowGeo = new THREE.SphereGeometry(9.5, 32, 32);
         const glowMat = new THREE.MeshBasicMaterial({
-            color: 0xffaa00,
-            transparent: true,
-            opacity: 0.3,
-            side: THREE.BackSide
+            color: 0xffaa00, transparent: true, opacity: 0.3, side: THREE.BackSide
         });
         sunGroup.add(new THREE.Mesh(glowGeo, glowMat));
 
-        // Outer corona
         const coronaGeo = new THREE.SphereGeometry(12, 32, 32);
         const coronaMat = new THREE.MeshBasicMaterial({
-            color: 0xff6600,
-            transparent: true,
-            opacity: 0.1,
-            side: THREE.BackSide
+            color: 0xff6600, transparent: true, opacity: 0.1, side: THREE.BackSide
         });
         sunGroup.add(new THREE.Mesh(coronaGeo, coronaMat));
 
@@ -116,164 +194,81 @@ export class SolarSystemRenderer {
 
     // --- Planets ---
 
-    /**
-     * Helper: add a planet to the scene
-     * @param {string} name - Planet identifier
-     * @param {object} opts - { radius, color, distance, orbitalSpeed, rotationSpeed }
-     */
-    _addPlanet(name, { radius, color, distance, orbitalSpeed, rotationSpeed }) {
-        // Pivot group for orbital movement
-        const pivot = new THREE.Group();
-
-        // Planet mesh — lit by the Sun's PointLight
+    _addPlanet(name, { radius, color, rotationSpeed, extras }) {
         const geo = new THREE.SphereGeometry(radius, 32, 32);
-        const mat = new THREE.MeshStandardMaterial({
-            color,
-            roughness: 0.8,
-            metalness: 0.1
-        });
+        const mat = new THREE.MeshStandardMaterial({ color, roughness: 0.8, metalness: 0.1 });
         const mesh = new THREE.Mesh(geo, mat);
-        mesh.position.x = distance;
         mesh.name = name;
-        pivot.add(mesh);
+        this.scene.add(mesh);
 
-        this.scene.add(pivot);
-        this.planets.set(name, { mesh, pivot, distance, orbitalSpeed, rotationSpeed });
+        // Extra meshes (atmosphere, rings) that follow the planet
+        const extraMeshes = extras || [];
+        extraMeshes.forEach(m => this.scene.add(m));
+
+        this.planets.set(name, {
+            mesh, extras: extraMeshes, rotationSpeed,
+            elements: ORBITAL_ELEMENTS[name]
+        });
     }
 
     _createMercury() {
         this._addPlanet('mercury', {
-            radius: 1.2,
-            color: 0x8c7e6d,
-            distance: 25,
-            orbitalSpeed: 0.004,
-            rotationSpeed: 0.002
-        });
-    }
-
-    _createEarth() {
-        // Pivot for orbit
-        const pivot = new THREE.Group();
-
-        // Earth sphere
-        const geo = new THREE.SphereGeometry(3, 64, 64);
-        const mat = new THREE.MeshStandardMaterial({
-            color: 0x2266aa,
-            roughness: 0.7,
-            metalness: 0.1
-        });
-        const mesh = new THREE.Mesh(geo, mat);
-        mesh.position.x = 55;
-        mesh.name = 'earth';
-
-        // Atmosphere glow
-        const atmoGeo = new THREE.SphereGeometry(3.3, 32, 32);
-        const atmoMat = new THREE.MeshBasicMaterial({
-            color: 0x88bbff,
-            transparent: true,
-            opacity: 0.15,
-            side: THREE.BackSide
-        });
-        const atmosphere = new THREE.Mesh(atmoGeo, atmoMat);
-        atmosphere.position.copy(mesh.position);
-
-        pivot.add(mesh);
-        pivot.add(atmosphere);
-        this.scene.add(pivot);
-
-        this.planets.set('earth', {
-            mesh, pivot,
-            distance: 55,
-            orbitalSpeed: 0.001,
-            rotationSpeed: 0.003
-        });
-    }
-
-    _createMars() {
-        this._addPlanet('mars', {
-            radius: 1.6,
-            color: 0xc1440e,
-            distance: 75,
-            orbitalSpeed: 0.0008,
-            rotationSpeed: 0.003
-        });
-    }
-
-    _createJupiter() {
-        this._addPlanet('jupiter', {
-            radius: 6.5,
-            color: 0xc8a87a,
-            distance: 120,
-            orbitalSpeed: 0.0004,
-            rotationSpeed: 0.006
-        });
-    }
-
-    _createSaturn() {
-        const pivot = new THREE.Group();
-
-        // Planet body
-        const geo = new THREE.SphereGeometry(5.5, 64, 64);
-        const mat = new THREE.MeshStandardMaterial({
-            color: 0xd4b86a,
-            roughness: 0.7,
-            metalness: 0.1
-        });
-        const mesh = new THREE.Mesh(geo, mat);
-        mesh.position.x = 170;
-        mesh.name = 'saturn';
-
-        // Ring system
-        const ringGeo = new THREE.RingGeometry(7, 12, 64);
-        const ringMat = new THREE.MeshBasicMaterial({
-            color: 0xc2a55a,
-            transparent: true,
-            opacity: 0.6,
-            side: THREE.DoubleSide
-        });
-        const ring = new THREE.Mesh(ringGeo, ringMat);
-        ring.position.copy(mesh.position);
-        ring.rotation.x = Math.PI * 0.45;
-
-        pivot.add(mesh);
-        pivot.add(ring);
-        this.scene.add(pivot);
-
-        this.planets.set('saturn', {
-            mesh, pivot,
-            distance: 170,
-            orbitalSpeed: 0.0003,
-            rotationSpeed: 0.005
-        });
-    }
-
-    _createUranus() {
-        this._addPlanet('uranus', {
-            radius: 4,
-            color: 0x7ec8c8,
-            distance: 230,
-            orbitalSpeed: 0.0002,
-            rotationSpeed: -0.004  // retrograde rotation
-        });
-    }
-
-    _createNeptune() {
-        this._addPlanet('neptune', {
-            radius: 3.8,
-            color: 0x3344aa,
-            distance: 290,
-            orbitalSpeed: 0.00015,
-            rotationSpeed: 0.004
+            radius: 1.2, color: 0x8c7e6d, rotationSpeed: 0.002
         });
     }
 
     _createVenus() {
         this._addPlanet('venus', {
-            radius: 2.8,
-            color: 0xe8cda0,
-            distance: 40,
-            orbitalSpeed: 0.0015,
-            rotationSpeed: -0.0005  // retrograde rotation
+            radius: 2.8, color: 0xe8cda0, rotationSpeed: -0.0005
+        });
+    }
+
+    _createEarth() {
+        const atmoGeo = new THREE.SphereGeometry(3.3, 32, 32);
+        const atmoMat = new THREE.MeshBasicMaterial({
+            color: 0x88bbff, transparent: true, opacity: 0.15, side: THREE.BackSide
+        });
+        const atmosphere = new THREE.Mesh(atmoGeo, atmoMat);
+
+        this._addPlanet('earth', {
+            radius: 3, color: 0x2266aa, rotationSpeed: 0.003, extras: [atmosphere]
+        });
+    }
+
+    _createMars() {
+        this._addPlanet('mars', {
+            radius: 1.6, color: 0xc1440e, rotationSpeed: 0.003
+        });
+    }
+
+    _createJupiter() {
+        this._addPlanet('jupiter', {
+            radius: 6.5, color: 0xc8a87a, rotationSpeed: 0.006
+        });
+    }
+
+    _createSaturn() {
+        const ringGeo = new THREE.RingGeometry(7, 12, 64);
+        const ringMat = new THREE.MeshBasicMaterial({
+            color: 0xc2a55a, transparent: true, opacity: 0.6, side: THREE.DoubleSide
+        });
+        const ring = new THREE.Mesh(ringGeo, ringMat);
+        ring.rotation.x = Math.PI * 0.45;
+
+        this._addPlanet('saturn', {
+            radius: 5.5, color: 0xd4b86a, rotationSpeed: 0.005, extras: [ring]
+        });
+    }
+
+    _createUranus() {
+        this._addPlanet('uranus', {
+            radius: 4, color: 0x7ec8c8, rotationSpeed: -0.004
+        });
+    }
+
+    _createNeptune() {
+        this._addPlanet('neptune', {
+            radius: 3.8, color: 0x3344aa, rotationSpeed: 0.004
         });
     }
 
@@ -284,7 +279,6 @@ export class SolarSystemRenderer {
 
         for (let i = 0; i < count; i++) {
             const i3 = i * 3;
-            // Distribute on a sphere shell
             const theta = Math.random() * Math.PI * 2;
             const phi = Math.acos(2 * Math.random() - 1);
             const r = radius * (0.8 + Math.random() * 0.2);
@@ -295,12 +289,7 @@ export class SolarSystemRenderer {
 
         const geometry = new THREE.BufferGeometry();
         geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
-
-        const material = new THREE.PointsMaterial({
-            color: 0xffffff,
-            size: 1.5,
-            sizeAttenuation: true
-        });
+        const material = new THREE.PointsMaterial({ color: 0xffffff, size: 1.5, sizeAttenuation: true });
 
         this.starfield = new THREE.Points(geometry, material);
         this.scene.add(this.starfield);
@@ -311,7 +300,6 @@ export class SolarSystemRenderer {
     _onWindowResize() {
         const width = this.canvas.clientWidth;
         const height = this.canvas.clientHeight;
-
         this.camera.aspect = width / height;
         this.camera.updateProjectionMatrix();
         this.renderer.setSize(width, height);
@@ -319,18 +307,32 @@ export class SolarSystemRenderer {
 
     // --- Public API ---
 
+    /**
+     * Set the current game year (called by TimeManager)
+     * @param {number} year - e.g. 2100.5 for mid-2100
+     */
+    setGameYear(year) {
+        this.gameYear = year;
+    }
+
     render() {
         if (!this.renderer) return;
 
-        // Slow sun rotation
+        // Sun rotation
         if (this.sun) {
             this.sun.rotation.y += 0.001;
         }
 
-        // Animate planets: orbit around sun + self rotation
+        // Update planet positions from Keplerian orbits
         for (const [, planet] of this.planets) {
-            planet.pivot.rotation.y += planet.orbitalSpeed;
+            const pos = computeOrbitalPosition(planet.elements, this.gameYear);
+            planet.mesh.position.set(pos.x, pos.y, pos.z);
             planet.mesh.rotation.y += planet.rotationSpeed;
+
+            // Move extras (atmosphere, rings) to follow planet
+            for (const extra of planet.extras) {
+                extra.position.set(pos.x, pos.y, pos.z);
+            }
         }
 
         this.renderer.render(this.scene, this.camera);
