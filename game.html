@@ -68,13 +68,15 @@
         const DAYS_IN_MONTH = [31,28,31,30,31,30,31,31,30,31,30,31];
 
         function yearFractionToDate(fraction) {
-            let dayOfYear = Math.floor(fraction * 365);
+            const totalHours = fraction * 365 * 24;
+            let dayOfYear = Math.floor(totalHours / 24);
+            const hour = Math.floor(totalHours % 24);
             let month = 0;
             while (month < 11 && dayOfYear >= DAYS_IN_MONTH[month]) {
                 dayOfYear -= DAYS_IN_MONTH[month];
                 month++;
             }
-            return `(${MONTHS[month]}-${String(dayOfYear + 1).padStart(2, '0')})`;
+            return `(${MONTHS[month]}-${String(dayOfYear + 1).padStart(2, '0')} ${String(hour).padStart(2, '0')}:00)`;
         }
 
         function animate() {
