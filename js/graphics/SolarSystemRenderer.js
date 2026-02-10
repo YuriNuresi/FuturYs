@@ -126,6 +126,9 @@ function computeOrbitalPosition(coeffs, year) {
 // Orbital update interval: recompute Kepler every N frames (at 60fps → ~15 Hz)
 const ORBIT_UPDATE_EVERY = 4;
 
+// Max pointer movement (px) to still count as a click (not a drag)
+const CLICK_THRESHOLD = 5;
+
 export class SolarSystemRenderer {
     constructor(canvasId) {
         this.canvas = document.getElementById(canvasId);
@@ -141,6 +144,14 @@ export class SolarSystemRenderer {
         this.sun = null;
         this.starfield = null;
 
+        // Raycasting / interaction
+        this._raycaster = new THREE.Raycaster();
+        this._mouse = new THREE.Vector2();
+        this._pointerDown = null;        // {x,y} at pointerdown
+        this.selectedPlanet = null;       // planet name or null
+        this._hoveredPlanet = null;       // planet name or null
+        this._selectionRing = null;       // visual indicator
+
         // Game time — updated externally by TimeManager
         this.gameYear = 2100;
 
@@ -150,6 +161,11 @@ export class SolarSystemRenderer {
         // Debounced resize
         this._resizeTimer = 0;
         this._boundResize = this._onResizeDebounced.bind(this);
+
+        // Interaction listeners (bound for cleanup)
+        this._boundPointerDown = this._onPointerDown.bind(this);
+        this._boundPointerUp = this._onPointerUp.bind(this);
+        this._boundPointerMove = this._onPointerMove.bind(this);
     }
 
     async init() {
@@ -169,6 +185,7 @@ export class SolarSystemRenderer {
         this._createUranus();
         this._createNeptune();
         this._createStarfield();
+        this._setupInteraction();
 
         window.addEventListener('resize', this._boundResize);
 
@@ -483,6 +500,108 @@ export class SolarSystemRenderer {
         this.starfield = { layers: [bgStars, brightStars, milkyWay] };
     }
 
+    // --- Interaction (raycasting) ---
+
+    _setupInteraction() {
+        // Selection ring: wireframe torus shown around selected planet
+        const ringGeo = new THREE.TorusGeometry(1, 0.08, 8, 48);
+        const ringMat = new THREE.MeshBasicMaterial({
+            color: 0x4fd1c7, transparent: true, opacity: 0.8
+        });
+        this._selectionRing = new THREE.Mesh(ringGeo, ringMat);
+        this._selectionRing.rotation.x = Math.PI / 2;
+        this._selectionRing.visible = false;
+        this.scene.add(this._selectionRing);
+
+        this.canvas.addEventListener('pointerdown', this._boundPointerDown);
+        this.canvas.addEventListener('pointerup', this._boundPointerUp);
+        this.canvas.addEventListener('pointermove', this._boundPointerMove);
+    }
+
+    _getNDC(event) {
+        const rect = this.canvas.getBoundingClientRect();
+        return {
+            x: ((event.clientX - rect.left) / rect.width) * 2 - 1,
+            y: -((event.clientY - rect.top) / rect.height) * 2 + 1
+        };
+    }
+
+    _getPlanetMeshes() {
+        const meshes = [];
+        for (const [, planet] of this.planets) {
+            meshes.push(planet.mesh);
+        }
+        return meshes;
+    }
+
+    _raycastPlanets(ndcX, ndcY) {
+        this._mouse.set(ndcX, ndcY);
+        this._raycaster.setFromCamera(this._mouse, this.camera);
+        const hits = this._raycaster.intersectObjects(this._getPlanetMeshes(), false);
+        return hits.length > 0 ? hits[0].object.name : null;
+    }
+
+    _onPointerDown(event) {
+        if (event.button !== 0) return; // left click only
+        this._pointerDown = { x: event.clientX, y: event.clientY };
+    }
+
+    _onPointerUp(event) {
+        if (event.button !== 0 || !this._pointerDown) return;
+
+        const dx = event.clientX - this._pointerDown.x;
+        const dy = event.clientY - this._pointerDown.y;
+        this._pointerDown = null;
+
+        // Ignore if pointer moved too much (it was a drag/rotate)
+        if (Math.sqrt(dx * dx + dy * dy) > CLICK_THRESHOLD) return;
+
+        const ndc = this._getNDC(event);
+        const hitName = this._raycastPlanets(ndc.x, ndc.y);
+
+        if (hitName) {
+            this.selectPlanet(hitName);
+        } else {
+            this.deselectPlanet();
+        }
+    }
+
+    _onPointerMove(event) {
+        const ndc = this._getNDC(event);
+        const hitName = this._raycastPlanets(ndc.x, ndc.y);
+
+        if (hitName !== this._hoveredPlanet) {
+            this._hoveredPlanet = hitName;
+            this.canvas.style.cursor = hitName ? 'pointer' : '';
+        }
+    }
+
+    /**
+     * Programmatically select a planet by name
+     * @param {string} name - planet name (e.g. 'earth')
+     */
+    selectPlanet(name) {
+        const planet = this.planets.get(name);
+        if (!planet) return;
+
+        this.selectedPlanet = name;
+
+        // Scale selection ring to planet radius (read from geometry)
+        const radius = planet.mesh.geometry.parameters.radius;
+        const ringScale = radius * 1.6;
+        this._selectionRing.scale.set(ringScale, ringScale, ringScale);
+        this._selectionRing.visible = true;
+
+        this.onPlanetClick?.(name);
+    }
+
+    deselectPlanet() {
+        if (!this.selectedPlanet) return;
+        this.selectedPlanet = null;
+        this._selectionRing.visible = false;
+        this.onPlanetClick?.(null);
+    }
+
     // --- Resize (debounced) ---
 
     _onResizeDebounced() {
@@ -534,11 +653,25 @@ export class SolarSystemRenderer {
             planet.mesh.quaternion.setFromAxisAngle(planet.rotationAxis, angle);
         }
 
+        // Update selection ring position
+        if (this._selectionRing.visible && this.selectedPlanet) {
+            const sel = this.planets.get(this.selectedPlanet);
+            if (sel) {
+                const wp = sel.group.position;
+                this._selectionRing.position.set(wp.x, wp.y, wp.z);
+                // Rotate ring to always face camera
+                this._selectionRing.lookAt(this.camera.position);
+            }
+        }
+
         this.renderer.render(this.scene, this.camera);
     }
 
     dispose() {
         window.removeEventListener('resize', this._boundResize);
+        this.canvas.removeEventListener('pointerdown', this._boundPointerDown);
+        this.canvas.removeEventListener('pointerup', this._boundPointerUp);
+        this.canvas.removeEventListener('pointermove', this._boundPointerMove);
         clearTimeout(this._resizeTimer);
 
         // Dispose starfield layers

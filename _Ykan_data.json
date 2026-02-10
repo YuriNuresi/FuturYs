@@ -447,7 +447,7 @@
             "id": "card_116",
             "title": "Implement raycasting for planet selection",
             "description": "Click su pianeti per selezione",
-            "column_id": "col_1",
+            "column_id": "col_3",
             "swimlane_id": "lane_2",
             "labels": ["lbl_2"],
             "priority": "high",
