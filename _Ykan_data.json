@@ -423,7 +423,7 @@
             "id": "card_114",
             "title": "Create starfield skybox",
             "description": "Sfondo stellato animato",
-            "column_id": "col_1",
+            "column_id": "col_3",
             "swimlane_id": "lane_2",
             "labels": ["lbl_2"],
             "priority": "medium",
