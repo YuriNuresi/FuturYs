@@ -8,6 +8,358 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 
+// === Procedural Texture Generator ===
+
+const TEX_W = 512;
+const TEX_H = 256;
+
+function createCanvas() {
+    const c = document.createElement('canvas');
+    c.width = TEX_W;
+    c.height = TEX_H;
+    return c;
+}
+
+/** Seeded pseudo-random (simple mulberry32) */
+function seededRandom(seed) {
+    let s = seed | 0;
+    return function() {
+        s = (s + 0x6D2B79F5) | 0;
+        let t = Math.imul(s ^ (s >>> 15), 1 | s);
+        t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+        return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+}
+
+/** Simple 2D value noise */
+function valueNoise(x, y, rand) {
+    const ix = Math.floor(x), iy = Math.floor(y);
+    const fx = x - ix, fy = y - iy;
+    const sx = fx * fx * (3 - 2 * fx), sy = fy * fy * (3 - 2 * fy);
+    const hash = (a, b) => {
+        const n = (a * 374761393 + b * 668265263 + 1013904223) & 0x7fffffff;
+        return (n * n * n * 60493) / 2147483648.0 % 1;
+    };
+    const v00 = hash(ix, iy), v10 = hash(ix+1, iy);
+    const v01 = hash(ix, iy+1), v11 = hash(ix+1, iy+1);
+    const top = v00 + (v10 - v00) * sx;
+    const bot = v01 + (v11 - v01) * sx;
+    return top + (bot - top) * sy;
+}
+
+/** Fractional Brownian motion (fBm) */
+function fbm(x, y, octaves, rand) {
+    let val = 0, amp = 0.5, freq = 1;
+    for (let i = 0; i < octaves; i++) {
+        val += amp * valueNoise(x * freq, y * freq, rand);
+        amp *= 0.5;
+        freq *= 2;
+    }
+    return val;
+}
+
+function lerpColor(r1,g1,b1, r2,g2,b2, t) {
+    return [
+        r1 + (r2 - r1) * t,
+        g1 + (g2 - g1) * t,
+        b1 + (b2 - b1) * t
+    ];
+}
+
+// --- Mercury: grey rocky surface with craters ---
+function generateMercuryTexture() {
+    const c = createCanvas(), ctx = c.getContext('2d');
+    const rand = seededRandom(111);
+    const img = ctx.createImageData(TEX_W, TEX_H);
+    for (let y = 0; y < TEX_H; y++) {
+        for (let x = 0; x < TEX_W; x++) {
+            const n = fbm(x / 60, y / 60, 5, rand);
+            const base = 100 + n * 80;
+            const i = (y * TEX_W + x) * 4;
+            img.data[i] = base * 0.95;
+            img.data[i+1] = base * 0.90;
+            img.data[i+2] = base * 0.82;
+            img.data[i+3] = 255;
+        }
+    }
+    ctx.putImageData(img, 0, 0);
+    // craters
+    const craterCount = 80;
+    for (let i = 0; i < craterCount; i++) {
+        const cx = rand() * TEX_W, cy = rand() * TEX_H;
+        const r = 2 + rand() * 12;
+        ctx.beginPath();
+        ctx.arc(cx, cy, r, 0, Math.PI * 2);
+        ctx.fillStyle = `rgba(60,55,45,${0.15 + rand() * 0.25})`;
+        ctx.fill();
+        // rim highlight
+        ctx.beginPath();
+        ctx.arc(cx - r*0.2, cy - r*0.2, r * 0.85, 0, Math.PI * 2);
+        ctx.strokeStyle = `rgba(180,170,150,${0.15 + rand() * 0.15})`;
+        ctx.lineWidth = 0.8;
+        ctx.stroke();
+    }
+    return new THREE.CanvasTexture(c);
+}
+
+// --- Venus: thick yellow-orange clouds with swirl patterns ---
+function generateVenusTexture() {
+    const c = createCanvas(), ctx = c.getContext('2d');
+    const img = ctx.createImageData(TEX_W, TEX_H);
+    for (let y = 0; y < TEX_H; y++) {
+        for (let x = 0; x < TEX_W; x++) {
+            const lat = y / TEX_H;
+            const n1 = fbm(x / 80 + lat * 2, y / 40, 5, null);
+            const n2 = fbm(x / 50 + 10, y / 30 + 5, 4, null);
+            const swirl = n1 * 0.6 + n2 * 0.4;
+            const r = 200 + swirl * 55;
+            const g = 170 + swirl * 45;
+            const b = 100 + swirl * 30;
+            const i = (y * TEX_W + x) * 4;
+            img.data[i] = Math.min(255, r);
+            img.data[i+1] = Math.min(255, g);
+            img.data[i+2] = Math.min(255, b);
+            img.data[i+3] = 255;
+        }
+    }
+    ctx.putImageData(img, 0, 0);
+    return new THREE.CanvasTexture(c);
+}
+
+// --- Earth: oceans, continents, polar caps ---
+function generateEarthTexture() {
+    const c = createCanvas(), ctx = c.getContext('2d');
+    const img = ctx.createImageData(TEX_W, TEX_H);
+    for (let y = 0; y < TEX_H; y++) {
+        const lat = (y / TEX_H - 0.5) * 2; // -1 to 1
+        for (let x = 0; x < TEX_W; x++) {
+            const n = fbm(x / 70, y / 70, 6, null);
+            const n2 = fbm(x / 40 + 100, y / 40 + 100, 4, null);
+            const landThreshold = 0.42 + Math.abs(lat) * 0.05;
+            const isLand = (n * 0.7 + n2 * 0.3) > landThreshold;
+            const polar = Math.abs(lat) > 0.82;
+            let r, g, b;
+            if (polar) {
+                r = 230 + n * 25; g = 235 + n * 20; b = 240 + n * 15;
+            } else if (isLand) {
+                const elevation = n * 0.7 + n2 * 0.3 - landThreshold;
+                if (elevation > 0.2) {
+                    // mountains
+                    r = 140 + n * 40; g = 120 + n * 30; b = 80 + n * 20;
+                } else if (Math.abs(lat) < 0.25) {
+                    // tropical green
+                    r = 50 + n * 40; g = 120 + n * 50; b = 40 + n * 20;
+                } else {
+                    // temperate green/brown
+                    r = 80 + n * 50; g = 130 + n * 40; b = 50 + n * 25;
+                }
+            } else {
+                // ocean
+                const depth = n * 0.3;
+                r = 15 + depth * 30; g = 50 + depth * 50; b = 140 + depth * 60;
+            }
+            const i4 = (y * TEX_W + x) * 4;
+            img.data[i4] = Math.min(255, r);
+            img.data[i4+1] = Math.min(255, g);
+            img.data[i4+2] = Math.min(255, b);
+            img.data[i4+3] = 255;
+        }
+    }
+    ctx.putImageData(img, 0, 0);
+    return new THREE.CanvasTexture(c);
+}
+
+// --- Mars: red/orange terrain with dark regions, polar caps ---
+function generateMarsTexture() {
+    const c = createCanvas(), ctx = c.getContext('2d');
+    const img = ctx.createImageData(TEX_W, TEX_H);
+    for (let y = 0; y < TEX_H; y++) {
+        const lat = (y / TEX_H - 0.5) * 2;
+        for (let x = 0; x < TEX_W; x++) {
+            const n = fbm(x / 60, y / 60, 5, null);
+            const n2 = fbm(x / 35 + 50, y / 35 + 50, 4, null);
+            const polar = Math.abs(lat) > 0.88;
+            let r, g, b;
+            if (polar) {
+                r = 220 + n * 35; g = 215 + n * 30; b = 210 + n * 25;
+            } else {
+                const dark = n2 > 0.55;
+                if (dark) {
+                    r = 120 + n * 40; g = 60 + n * 25; b = 30 + n * 15;
+                } else {
+                    r = 190 + n * 50; g = 110 + n * 35; b = 60 + n * 20;
+                }
+            }
+            const i4 = (y * TEX_W + x) * 4;
+            img.data[i4] = Math.min(255, r);
+            img.data[i4+1] = Math.min(255, g);
+            img.data[i4+2] = Math.min(255, b);
+            img.data[i4+3] = 255;
+        }
+    }
+    ctx.putImageData(img, 0, 0);
+    return new THREE.CanvasTexture(c);
+}
+
+// --- Jupiter: horizontal bands with Great Red Spot ---
+function generateJupiterTexture() {
+    const c = createCanvas(), ctx = c.getContext('2d');
+    const img = ctx.createImageData(TEX_W, TEX_H);
+    // Band colors: alternating cream/orange/brown
+    const bands = [
+        [210,190,150], [180,140,90], [220,200,160], [160,120,80],
+        [230,210,170], [190,150,100], [200,170,130], [170,130,85],
+        [225,205,165], [185,145,95], [215,195,155], [165,125,82]
+    ];
+    for (let y = 0; y < TEX_H; y++) {
+        const lat = y / TEX_H;
+        const bandIdx = Math.floor(lat * bands.length);
+        const nextIdx = Math.min(bandIdx + 1, bands.length - 1);
+        const t = (lat * bands.length) - bandIdx;
+        const bc = lerpColor(...bands[bandIdx], ...bands[nextIdx], t);
+        for (let x = 0; x < TEX_W; x++) {
+            const n = fbm(x / 100 + lat * 3, y / 20, 4, null);
+            const turb = fbm(x / 40, y / 15 + 200, 3, null) * 15;
+            let r = bc[0] + n * 30 + turb;
+            let g = bc[1] + n * 20 + turb * 0.6;
+            let b = bc[2] + n * 10;
+            // Great Red Spot (around 22% south, 60% longitude)
+            const dx = (x / TEX_W - 0.6) * TEX_W;
+            const dy = (y / TEX_H - 0.65) * TEX_H;
+            const spotDist = Math.sqrt(dx*dx*0.6 + dy*dy*1.5);
+            if (spotDist < 22) {
+                const spotT = 1 - spotDist / 22;
+                const spotIntensity = spotT * spotT;
+                r = r + (200 - r) * spotIntensity * 0.7;
+                g = g + (80 - g) * spotIntensity * 0.7;
+                b = b + (60 - b) * spotIntensity * 0.7;
+            }
+            const i4 = (y * TEX_W + x) * 4;
+            img.data[i4] = Math.min(255, Math.max(0, r));
+            img.data[i4+1] = Math.min(255, Math.max(0, g));
+            img.data[i4+2] = Math.min(255, Math.max(0, b));
+            img.data[i4+3] = 255;
+        }
+    }
+    ctx.putImageData(img, 0, 0);
+    return new THREE.CanvasTexture(c);
+}
+
+// --- Saturn: horizontal bands in gold/cream ---
+function generateSaturnTexture() {
+    const c = createCanvas(), ctx = c.getContext('2d');
+    const img = ctx.createImageData(TEX_W, TEX_H);
+    const bands = [
+        [220,200,150], [200,180,130], [230,215,170], [190,170,120],
+        [225,210,160], [205,185,135], [215,195,145], [195,175,125],
+        [228,212,165], [198,178,128]
+    ];
+    for (let y = 0; y < TEX_H; y++) {
+        const lat = y / TEX_H;
+        const bandIdx = Math.floor(lat * bands.length);
+        const nextIdx = Math.min(bandIdx + 1, bands.length - 1);
+        const t = (lat * bands.length) - bandIdx;
+        const bc = lerpColor(...bands[bandIdx], ...bands[nextIdx], t);
+        for (let x = 0; x < TEX_W; x++) {
+            const n = fbm(x / 120, y / 25, 4, null);
+            const r = bc[0] + n * 25;
+            const g = bc[1] + n * 20;
+            const b = bc[2] + n * 10;
+            const i4 = (y * TEX_W + x) * 4;
+            img.data[i4] = Math.min(255, r);
+            img.data[i4+1] = Math.min(255, g);
+            img.data[i4+2] = Math.min(255, b);
+            img.data[i4+3] = 255;
+        }
+    }
+    ctx.putImageData(img, 0, 0);
+    return new THREE.CanvasTexture(c);
+}
+
+// --- Saturn Ring texture ---
+function generateSaturnRingTexture() {
+    const c = document.createElement('canvas');
+    c.width = 512; c.height = 64;
+    const ctx = c.getContext('2d');
+    const img = ctx.createImageData(512, 64);
+    const rand = seededRandom(777);
+    for (let x = 0; x < 512; x++) {
+        const u = x / 512; // 0=inner, 1=outer
+        const n = fbm(x / 30, 0, 3, null);
+        // Multiple ring bands with gaps
+        const gap1 = (u > 0.38 && u < 0.42) ? 0.1 : 1.0;  // Cassini division
+        const gap2 = (u > 0.18 && u < 0.20) ? 0.3 : 1.0;
+        const brightness = (160 + n * 60) * gap1 * gap2;
+        const alpha = (u < 0.05 || u > 0.95) ? 0 : (180 + n * 50) * gap1 * gap2;
+        for (let y = 0; y < 64; y++) {
+            const i4 = (y * 512 + x) * 4;
+            img.data[i4] = Math.min(255, brightness * 1.1);
+            img.data[i4+1] = Math.min(255, brightness * 0.95);
+            img.data[i4+2] = Math.min(255, brightness * 0.75);
+            img.data[i4+3] = Math.min(255, Math.max(0, alpha));
+        }
+    }
+    ctx.putImageData(img, 0, 0);
+    return new THREE.CanvasTexture(c);
+}
+
+// --- Uranus: subtle cyan/teal bands ---
+function generateUranusTexture() {
+    const c = createCanvas(), ctx = c.getContext('2d');
+    const img = ctx.createImageData(TEX_W, TEX_H);
+    for (let y = 0; y < TEX_H; y++) {
+        const lat = y / TEX_H;
+        for (let x = 0; x < TEX_W; x++) {
+            const n = fbm(x / 150, y / 30, 3, null);
+            const band = Math.sin(lat * Math.PI * 8) * 10;
+            const r = 100 + n * 30 + band * 0.3;
+            const g = 185 + n * 25 + band * 0.5;
+            const b = 195 + n * 20 + band * 0.4;
+            const i4 = (y * TEX_W + x) * 4;
+            img.data[i4] = Math.min(255, Math.max(0, r));
+            img.data[i4+1] = Math.min(255, Math.max(0, g));
+            img.data[i4+2] = Math.min(255, Math.max(0, b));
+            img.data[i4+3] = 255;
+        }
+    }
+    ctx.putImageData(img, 0, 0);
+    return new THREE.CanvasTexture(c);
+}
+
+// --- Neptune: deep blue with darker bands and a dark spot ---
+function generateNeptuneTexture() {
+    const c = createCanvas(), ctx = c.getContext('2d');
+    const img = ctx.createImageData(TEX_W, TEX_H);
+    for (let y = 0; y < TEX_H; y++) {
+        const lat = y / TEX_H;
+        for (let x = 0; x < TEX_W; x++) {
+            const n = fbm(x / 100, y / 25, 4, null);
+            const band = Math.sin(lat * Math.PI * 10) * 12;
+            let r = 30 + n * 25 + band * 0.2;
+            let g = 50 + n * 30 + band * 0.4;
+            let b = 160 + n * 40 + band * 0.5;
+            // Great Dark Spot (around 30% south, 40% longitude)
+            const dx = (x / TEX_W - 0.4) * TEX_W;
+            const dy = (y / TEX_H - 0.62) * TEX_H;
+            const spotDist = Math.sqrt(dx*dx*0.8 + dy*dy*2);
+            if (spotDist < 18) {
+                const spotT = 1 - spotDist / 18;
+                const dark = spotT * spotT * 0.5;
+                r *= (1 - dark);
+                g *= (1 - dark);
+                b *= (1 - dark * 0.4);
+            }
+            const i4 = (y * TEX_W + x) * 4;
+            img.data[i4] = Math.min(255, Math.max(0, r));
+            img.data[i4+1] = Math.min(255, Math.max(0, g));
+            img.data[i4+2] = Math.min(255, Math.max(0, b));
+            img.data[i4+3] = 255;
+        }
+    }
+    ctx.putImageData(img, 0, 0);
+    return new THREE.CanvasTexture(c);
+}
+
 // --- Orbital Elements (NASA JPL, epoch J2000.0 = 1 Jan 2000 12:00 TT) ---
 // a = semi-major axis (AU), e = eccentricity, I = inclination (deg),
 // L0 = mean longitude at epoch (deg), wbar = longitude of perihelion (deg),
@@ -21,6 +373,14 @@ const ORBITAL_ELEMENTS = {
     saturn:  { a: 9.55491, e: 0.05551, I: 2.489, L0: 50.077, wbar: 93.057, omega: 113.666, period: 29.4571 },
     uranus:  { a: 19.1817, e: 0.04686, I: 0.773, L0: 314.055, wbar: 173.005, omega: 74.006, period: 84.0110 },
     neptune: { a: 30.0690, e: 0.00895, I: 1.770, L0: 304.349, wbar: 48.124, omega: 131.784, period: 164.790 }
+};
+
+// Geometry segments by planet size tier (small, medium, large)
+const SEGMENTS = { small: 24, medium: 32, large: 40 };
+const PLANET_SEGMENTS = {
+    mercury: SEGMENTS.small, venus: SEGMENTS.medium, earth: SEGMENTS.medium,
+    mars: SEGMENTS.small, jupiter: SEGMENTS.large, saturn: SEGMENTS.large,
+    uranus: SEGMENTS.medium, neptune: SEGMENTS.medium
 };
 
 // Distance scaling: compress AU to scene units so all planets are visible
@@ -53,29 +413,15 @@ function solveKepler(M, e) {
 }
 
 /**
- * Compute heliocentric position for given orbital elements and year
- * Returns {x, y, z} in scene units
+ * Pre-compute the constant rotation matrix coefficients for each planet.
+ * These depend only on orbital elements (wbar, omega, I) which are fixed.
+ * Returns { Ax, Bx, Ay, By, Az, Bz, n, L0, e, scale } where:
+ *   x = Ax*xPrime + Bx*yPrime, etc.  (in scene units)
  */
-function computeOrbitalPosition(elements, year) {
+function precomputeOrbitalCoeffs(elements) {
     const { a, e, I, L0, wbar, omega, period } = elements;
 
-    // Mean longitude at given year
-    const n = 360 / period; // mean motion (deg/year)
-    const dt = year - 2000.0;
-    const L = (L0 + n * dt) % 360;
-
-    // Mean anomaly
-    const M = degToRad(((L - wbar) % 360 + 360) % 360);
-
-    // Solve Kepler's equation
-    const E = solveKepler(M, e);
-
-    // Position in orbital plane
-    const xPrime = a * (Math.cos(E) - e);
-    const yPrime = a * Math.sqrt(1 - e * e) * Math.sin(E);
-
-    // Rotate to heliocentric ecliptic coordinates
-    const w = degToRad(wbar - omega); // argument of perihelion
+    const w = degToRad(wbar - omega);
     const Om = degToRad(omega);
     const inc = degToRad(I);
 
@@ -83,17 +429,58 @@ function computeOrbitalPosition(elements, year) {
     const cosOm = Math.cos(Om), sinOm = Math.sin(Om);
     const cosI = Math.cos(inc), sinI = Math.sin(inc);
 
-    const x = (cosW * cosOm - sinW * sinOm * cosI) * xPrime +
-              (-sinW * cosOm - cosW * sinOm * cosI) * yPrime;
-    const y = (cosW * sinOm + sinW * cosOm * cosI) * xPrime +
-              (-sinW * sinOm + cosW * cosOm * cosI) * yPrime;
-    const z = (sinW * sinI) * xPrime + (cosW * sinI) * yPrime;
+    const scale = auToScene(a) / a;
 
-    // Scale to scene units
-    const scale = auToScene(a) / a; // uniform scale per planet
-    return { x: x * scale, y: z * scale, z: -y * scale }; // Y-up coordinate swap
+    // Ecliptic x,y,z coefficients (pre-scaled, with Y-up swap baked in)
+    return {
+        // scene X = ecliptic x * scale
+        Ax: (cosW * cosOm - sinW * sinOm * cosI) * scale,
+        Bx: (-sinW * cosOm - cosW * sinOm * cosI) * scale,
+        // scene Y = ecliptic z * scale  (Y-up swap)
+        Ay: (sinW * sinI) * scale,
+        By: (cosW * sinI) * scale,
+        // scene Z = -ecliptic y * scale  (Y-up swap)
+        Az: -(cosW * sinOm + sinW * cosOm * cosI) * scale,
+        Bz: -(-sinW * sinOm + cosW * cosOm * cosI) * scale,
+        n: 360 / period,   // mean motion (deg/year)
+        L0, wbar, e, a
+    };
 }
 
+// Pre-compute coefficients once at module load
+const ORBITAL_COEFFS = {};
+for (const name in ORBITAL_ELEMENTS) {
+    ORBITAL_COEFFS[name] = precomputeOrbitalCoeffs(ORBITAL_ELEMENTS[name]);
+}
+
+/**
+ * Compute heliocentric position using pre-computed coefficients.
+ * Only Kepler solve + 2 trig calls remain per frame.
+ */
+function computeOrbitalPosition(coeffs, year) {
+    const { Ax, Bx, Ay, By, Az, Bz, n, L0, wbar, e, a } = coeffs;
+
+    const dt = year - 2000.0;
+    const L = (L0 + n * dt) % 360;
+    const M = degToRad(((L - wbar) % 360 + 360) % 360);
+    const E = solveKepler(M, e);
+
+    const xPrime = a * (Math.cos(E) - e);
+    const yPrime = a * Math.sqrt(1 - e * e) * Math.sin(E);
+
+    return {
+        x: Ax * xPrime + Bx * yPrime,
+        y: Ay * xPrime + By * yPrime,
+        z: Az * xPrime + Bz * yPrime
+    };
+}
+
+
+// Orbital update interval: recompute Kepler every N frames (at 60fps → ~15 Hz)
+const ORBIT_UPDATE_EVERY = 4;
+
+// Max pointer movement (px) to still count as a click (not a drag)
+const CLICK_THRESHOLD = 5;
 
 // ============================================================
 // Procedural Texture Generation (Canvas2D)
@@ -526,17 +913,21 @@ export class SolarSystemRenderer {
         this.camera = null;
         this.renderer = null;
         this.controls = null;
-        this.clock = new THREE.Clock();
 
         // Scene objects
         this.planets = new Map();
         this.sun = null;
         this.starfield = null;
 
+        // Raycaster for planet selection
+        this.raycaster = new THREE.Raycaster();
+        this.mouse = new THREE.Vector2();
+
         // Game time — updated externally by TimeManager
         this.gameYear = 2100;
 
         this._boundResize = this._onWindowResize.bind(this);
+        this._boundClick = this._onCanvasClick.bind(this);
     }
 
     async init() {
@@ -556,8 +947,10 @@ export class SolarSystemRenderer {
         this._createUranus();
         this._createNeptune();
         this._createStarfield();
+        this._setupInteraction();
 
         window.addEventListener('resize', this._boundResize);
+        this.canvas.addEventListener('click', this._boundClick);
 
         console.log('Solar System scene ready');
     }
@@ -566,7 +959,7 @@ export class SolarSystemRenderer {
 
     _setupRenderer() {
         this.scene = new THREE.Scene();
-        this.scene.background = new THREE.Color(0x020810);
+        this.scene.background = new THREE.Color(0x000005);
 
         this.renderer = new THREE.WebGLRenderer({
             canvas: this.canvas,
@@ -639,7 +1032,7 @@ export class SolarSystemRenderer {
      * @param {HTMLCanvasElement} opts.textureCanvas - procedural texture canvas
      * @param {number} opts.rotationPeriod - sidereal rotation period in Earth hours (negative = retrograde)
      * @param {number} opts.axialTilt - axial tilt in degrees
-     * @param {THREE.Mesh[]} [opts.extras] - extra meshes (atmosphere, rings)
+     * @param {THREE.Mesh[]} [opts.extras] - extra meshes (atmosphere, rings) added to group
      */
     _addPlanet(name, { radius, textureCanvas, rotationPeriod, axialTilt, extras }) {
         const geo = new THREE.SphereGeometry(radius, 32, 32);
@@ -648,22 +1041,23 @@ export class SolarSystemRenderer {
         const mat = new THREE.MeshStandardMaterial({ map: texture, roughness: 0.8, metalness: 0.1 });
         const mesh = new THREE.Mesh(geo, mat);
         mesh.name = name;
-        this.scene.add(mesh);
 
+        // Group planet + extras so position sync is automatic
+        const group = new THREE.Group();
+        group.add(mesh);
         const extraMeshes = extras || [];
-        extraMeshes.forEach(m => this.scene.add(m));
+        extraMeshes.forEach(m => group.add(m));
+        this.scene.add(group);
 
         // Pre-compute tilted rotation axis
         const tilt = degToRad(axialTilt || 0);
         const rotationAxis = new THREE.Vector3(Math.sin(tilt), Math.cos(tilt), 0).normalize();
 
-        // Rotations per game year = (365.25 * 24) / |rotationPeriod|
-        // Sign of rotationPeriod handles retrograde
         const rotationsPerYear = (365.25 * 24) / rotationPeriod;
 
         this.planets.set(name, {
-            mesh, extras: extraMeshes, rotationAxis, rotationsPerYear,
-            elements: ORBITAL_ELEMENTS[name]
+            mesh, group, rotationAxis, rotationsPerYear,
+            coeffs: ORBITAL_COEFFS[name]
         });
     }
 
@@ -682,7 +1076,7 @@ export class SolarSystemRenderer {
     }
 
     _createEarth() {
-        const atmoGeo = new THREE.SphereGeometry(3.3, 32, 32);
+        const atmoGeo = new THREE.SphereGeometry(3.3, 48, 48);
         const atmoMat = new THREE.MeshBasicMaterial({
             color: 0x88bbff, transparent: true, opacity: 0.15, side: THREE.BackSide
         });
@@ -751,33 +1145,260 @@ export class SolarSystemRenderer {
     }
 
     _createStarfield() {
-        const count = 2000;
-        const positions = new Float32Array(count * 3);
+        // --- Layer 1: Background stars (small, numerous, subtle) ---
+        const bgCount = 6000;
+        const bgPositions = new Float32Array(bgCount * 3);
+        const bgColors = new Float32Array(bgCount * 3);
+        const bgSizes = new Float32Array(bgCount);
         const radius = 20000;
 
-        for (let i = 0; i < count; i++) {
+        // Spectral class color palette (approximate RGB)
+        const STAR_COLORS = [
+            { r: 0.62, g: 0.69, b: 1.0 },   // O/B — blue-white
+            { r: 0.82, g: 0.87, b: 1.0 },   // A — white-blue
+            { r: 1.0,  g: 0.98, b: 0.95 },  // F — warm white
+            { r: 1.0,  g: 0.93, b: 0.78 },  // G — yellow (Sun-like)
+            { r: 1.0,  g: 0.82, b: 0.62 },  // K — orange
+            { r: 1.0,  g: 0.70, b: 0.50 },  // M — red-orange
+        ];
+        // Weighted distribution: cooler stars are far more common
+        const STAR_WEIGHTS = [0.02, 0.05, 0.10, 0.18, 0.30, 0.35];
+        const cumulativeWeights = [];
+        STAR_WEIGHTS.reduce((sum, w, i) => { cumulativeWeights[i] = sum + w; return sum + w; }, 0);
+
+        function pickStarColor() {
+            const r = Math.random();
+            for (let i = 0; i < cumulativeWeights.length; i++) {
+                if (r < cumulativeWeights[i]) return STAR_COLORS[i];
+            }
+            return STAR_COLORS[STAR_COLORS.length - 1];
+        }
+
+        for (let i = 0; i < bgCount; i++) {
             const i3 = i * 3;
             const theta = Math.random() * Math.PI * 2;
             const phi = Math.acos(2 * Math.random() - 1);
-            const r = radius * (0.8 + Math.random() * 0.2);
-            positions[i3] = r * Math.sin(phi) * Math.cos(theta);
-            positions[i3 + 1] = r * Math.sin(phi) * Math.sin(theta);
-            positions[i3 + 2] = r * Math.cos(phi);
+            const r = radius * (0.85 + Math.random() * 0.15);
+            bgPositions[i3]     = r * Math.sin(phi) * Math.cos(theta);
+            bgPositions[i3 + 1] = r * Math.sin(phi) * Math.sin(theta);
+            bgPositions[i3 + 2] = r * Math.cos(phi);
+
+            const c = pickStarColor();
+            const brightness = 0.4 + Math.random() * 0.6;
+            bgColors[i3]     = c.r * brightness;
+            bgColors[i3 + 1] = c.g * brightness;
+            bgColors[i3 + 2] = c.b * brightness;
+
+            bgSizes[i] = 0.8 + Math.random() * 1.2;
         }
 
-        const geometry = new THREE.BufferGeometry();
-        geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
-        const material = new THREE.PointsMaterial({ color: 0xffffff, size: 1.5, sizeAttenuation: true });
+        const bgGeometry = new THREE.BufferGeometry();
+        bgGeometry.setAttribute('position', new THREE.BufferAttribute(bgPositions, 3));
+        bgGeometry.setAttribute('color', new THREE.BufferAttribute(bgColors, 3));
+        bgGeometry.setAttribute('size', new THREE.BufferAttribute(bgSizes, 1));
 
-        this.starfield = new THREE.Points(geometry, material);
-        this.scene.add(this.starfield);
+        const bgMaterial = new THREE.PointsMaterial({
+            size: 1.0, sizeAttenuation: true, vertexColors: true,
+            transparent: true, opacity: 0.85
+        });
+
+        const bgStars = new THREE.Points(bgGeometry, bgMaterial);
+        this.scene.add(bgStars);
+
+        // --- Layer 2: Bright highlight stars (fewer, larger, with twinkle) ---
+        const brightCount = 400;
+        const brPositions = new Float32Array(brightCount * 3);
+        const brColors = new Float32Array(brightCount * 3);
+
+        for (let i = 0; i < brightCount; i++) {
+            const i3 = i * 3;
+            const theta = Math.random() * Math.PI * 2;
+            const phi = Math.acos(2 * Math.random() - 1);
+            const r = radius * (0.9 + Math.random() * 0.1);
+            brPositions[i3]     = r * Math.sin(phi) * Math.cos(theta);
+            brPositions[i3 + 1] = r * Math.sin(phi) * Math.sin(theta);
+            brPositions[i3 + 2] = r * Math.cos(phi);
+
+            const c = pickStarColor();
+            brColors[i3]     = c.r;
+            brColors[i3 + 1] = c.g;
+            brColors[i3 + 2] = c.b;
+        }
+
+        const brGeometry = new THREE.BufferGeometry();
+        brGeometry.setAttribute('position', new THREE.BufferAttribute(brPositions, 3));
+        brGeometry.setAttribute('color', new THREE.BufferAttribute(brColors, 3));
+
+        const brMaterial = new THREE.PointsMaterial({
+            size: 2.8, sizeAttenuation: true, vertexColors: true,
+            transparent: true, opacity: 1.0
+        });
+
+        const brightStars = new THREE.Points(brGeometry, brMaterial);
+        this.scene.add(brightStars);
+
+        // --- Layer 3: Milky Way band (dense cluster of tiny dim stars along galactic plane) ---
+        const mwCount = 4000;
+        const mwPositions = new Float32Array(mwCount * 3);
+        const mwColors = new Float32Array(mwCount * 3);
+
+        // Galactic plane: tilted ~60° from ecliptic, concentrated near a band
+        const galTilt = degToRad(60);
+        const cosGal = Math.cos(galTilt);
+        const sinGal = Math.sin(galTilt);
+
+        for (let i = 0; i < mwCount; i++) {
+            const i3 = i * 3;
+            // Concentrate around galactic equator using Gaussian-like distribution
+            const galLon = Math.random() * Math.PI * 2;
+            const galLat = (Math.random() + Math.random() + Math.random() - 1.5) * 0.35; // peaked at 0
+            const r = radius * (0.85 + Math.random() * 0.15);
+
+            // Spherical in galactic coords
+            const x = r * Math.cos(galLat) * Math.cos(galLon);
+            const y = r * Math.cos(galLat) * Math.sin(galLon);
+            const z = r * Math.sin(galLat);
+
+            // Rotate galactic → ecliptic (tilt around X axis)
+            mwPositions[i3]     = x;
+            mwPositions[i3 + 1] = y * cosGal - z * sinGal;
+            mwPositions[i3 + 2] = y * sinGal + z * cosGal;
+
+            const brightness = 0.15 + Math.random() * 0.35;
+            mwColors[i3]     = 0.85 * brightness;
+            mwColors[i3 + 1] = 0.82 * brightness;
+            mwColors[i3 + 2] = 1.0  * brightness;
+        }
+
+        const mwGeometry = new THREE.BufferGeometry();
+        mwGeometry.setAttribute('position', new THREE.BufferAttribute(mwPositions, 3));
+        mwGeometry.setAttribute('color', new THREE.BufferAttribute(mwColors, 3));
+
+        const mwMaterial = new THREE.PointsMaterial({
+            size: 0.7, sizeAttenuation: true, vertexColors: true,
+            transparent: true, opacity: 0.6
+        });
+
+        const milkyWay = new THREE.Points(mwGeometry, mwMaterial);
+        this.scene.add(milkyWay);
+
+        // Keep references for dispose
+        this.starfield = { layers: [bgStars, brightStars, milkyWay] };
     }
 
-    // --- Resize ---
+    // --- Interaction (raycasting) ---
 
-    _onWindowResize() {
+    _setupInteraction() {
+        // Selection ring: wireframe torus shown around selected planet
+        const ringGeo = new THREE.TorusGeometry(1, 0.08, 8, 48);
+        const ringMat = new THREE.MeshBasicMaterial({
+            color: 0x4fd1c7, transparent: true, opacity: 0.8
+        });
+        this._selectionRing = new THREE.Mesh(ringGeo, ringMat);
+        this._selectionRing.rotation.x = Math.PI / 2;
+        this._selectionRing.visible = false;
+        this.scene.add(this._selectionRing);
+
+        this.canvas.addEventListener('pointerdown', this._boundPointerDown);
+        this.canvas.addEventListener('pointerup', this._boundPointerUp);
+        this.canvas.addEventListener('pointermove', this._boundPointerMove);
+    }
+
+    _getNDC(event) {
+        const rect = this.canvas.getBoundingClientRect();
+        return {
+            x: ((event.clientX - rect.left) / rect.width) * 2 - 1,
+            y: -((event.clientY - rect.top) / rect.height) * 2 + 1
+        };
+    }
+
+    _getPlanetMeshes() {
+        const meshes = [];
+        for (const [, planet] of this.planets) {
+            meshes.push(planet.mesh);
+        }
+        return meshes;
+    }
+
+    _raycastPlanets(ndcX, ndcY) {
+        this._mouse.set(ndcX, ndcY);
+        this._raycaster.setFromCamera(this._mouse, this.camera);
+        const hits = this._raycaster.intersectObjects(this._getPlanetMeshes(), false);
+        return hits.length > 0 ? hits[0].object.name : null;
+    }
+
+    _onPointerDown(event) {
+        if (event.button !== 0) return; // left click only
+        this._pointerDown = { x: event.clientX, y: event.clientY };
+    }
+
+    _onPointerUp(event) {
+        if (event.button !== 0 || !this._pointerDown) return;
+
+        const dx = event.clientX - this._pointerDown.x;
+        const dy = event.clientY - this._pointerDown.y;
+        this._pointerDown = null;
+
+        // Ignore if pointer moved too much (it was a drag/rotate)
+        if (Math.sqrt(dx * dx + dy * dy) > CLICK_THRESHOLD) return;
+
+        const ndc = this._getNDC(event);
+        const hitName = this._raycastPlanets(ndc.x, ndc.y);
+
+        if (hitName) {
+            this.selectPlanet(hitName);
+        } else {
+            this.deselectPlanet();
+        }
+    }
+
+    _onPointerMove(event) {
+        const ndc = this._getNDC(event);
+        const hitName = this._raycastPlanets(ndc.x, ndc.y);
+
+        if (hitName !== this._hoveredPlanet) {
+            this._hoveredPlanet = hitName;
+            this.canvas.style.cursor = hitName ? 'pointer' : '';
+        }
+    }
+
+    /**
+     * Programmatically select a planet by name
+     * @param {string} name - planet name (e.g. 'earth')
+     */
+    selectPlanet(name) {
+        const planet = this.planets.get(name);
+        if (!planet) return;
+
+        this.selectedPlanet = name;
+
+        // Scale selection ring to planet radius (read from geometry)
+        const radius = planet.mesh.geometry.parameters.radius;
+        const ringScale = radius * 1.6;
+        this._selectionRing.scale.set(ringScale, ringScale, ringScale);
+        this._selectionRing.visible = true;
+
+        this.onPlanetClick?.(name);
+    }
+
+    deselectPlanet() {
+        if (!this.selectedPlanet) return;
+        this.selectedPlanet = null;
+        this._selectionRing.visible = false;
+        this.onPlanetClick?.(null);
+    }
+
+    // --- Resize (debounced) ---
+
+    _onResizeDebounced() {
+        clearTimeout(this._resizeTimer);
+        this._resizeTimer = setTimeout(() => this._applyResize(), 150);
+    }
+
+    _applyResize() {
         const width = this.canvas.clientWidth;
         const height = this.canvas.clientHeight;
+        if (width === 0 || height === 0) return;
         this.camera.aspect = width / height;
         this.camera.updateProjectionMatrix();
         this.renderer.setSize(width, height);
@@ -796,39 +1417,132 @@ export class SolarSystemRenderer {
     render() {
         if (!this.renderer) return;
 
-        // Update controls (damping)
-        if (this.controls) {
-            this.controls.update();
-        }
+        this.controls?.update();
 
-        // Sun rotation
         if (this.sun) {
             this.sun.rotation.y += 0.001;
         }
 
-        // Update planet positions and rotations from game time
+        this._frameCount++;
+        const updateOrbits = (this._frameCount % ORBIT_UPDATE_EVERY) === 0;
         const TWO_PI = Math.PI * 2;
+
         for (const [, planet] of this.planets) {
-            // Orbital position from Keplerian elements
-            const pos = computeOrbitalPosition(planet.elements, this.gameYear);
-            planet.mesh.position.set(pos.x, pos.y, pos.z);
+            // Orbital position — throttled (Kepler solve is expensive)
+            if (updateOrbits) {
+                const pos = computeOrbitalPosition(planet.coeffs, this.gameYear);
+                planet.group.position.set(pos.x, pos.y, pos.z);
+            }
 
             // Self-rotation: absolute angle from game year
             // rotationsPerYear * gameYear * 2pi = total angle
             const angle = planet.rotationsPerYear * this.gameYear * TWO_PI;
             planet.mesh.quaternion.setFromAxisAngle(planet.rotationAxis, angle);
+        }
 
-            // Move extras (atmosphere, rings) to follow planet
-            for (const extra of planet.extras) {
-                extra.position.set(pos.x, pos.y, pos.z);
+        // Update selection ring position
+        if (this._selectionRing.visible && this.selectedPlanet) {
+            const sel = this.planets.get(this.selectedPlanet);
+            if (sel) {
+                const wp = sel.group.position;
+                this._selectionRing.position.set(wp.x, wp.y, wp.z);
+                // Rotate ring to always face camera
+                this._selectionRing.lookAt(this.camera.position);
             }
         }
 
         this.renderer.render(this.scene, this.camera);
     }
 
+    /**
+     * Handle canvas click to select planets
+     */
+    _onCanvasClick(event) {
+        // Calculate normalized device coordinates (-1 to +1)
+        const rect = this.canvas.getBoundingClientRect();
+        this.mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+        this.mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+
+        // Update the raycaster
+        this.raycaster.setFromCamera(this.mouse, this.camera);
+
+        // Get all planet meshes
+        const planetMeshes = Array.from(this.planets.values()).map(p => p.mesh);
+
+        // Check for intersections
+        const intersects = this.raycaster.intersectObjects(planetMeshes, false);
+
+        if (intersects.length > 0) {
+            const clickedMesh = intersects[0].object;
+            const planetName = clickedMesh.name;
+            const planetData = this.planets.get(planetName);
+
+            if (planetData && this.onPlanetClick) {
+                // Get planet info
+                const planetInfo = this._getPlanetInfo(planetName, planetData);
+                this.onPlanetClick(planetInfo);
+            }
+        }
+    }
+
+    /**
+     * Get detailed information about a planet
+     */
+    _getPlanetInfo(name, planetData) {
+        const { elements } = planetData;
+        const pos = computeOrbitalPosition(elements, this.gameYear);
+
+        // Calculate distance from Earth
+        const earthData = this.planets.get('earth');
+        const earthPos = computeOrbitalPosition(earthData.elements, this.gameYear);
+        const dx = pos.x - earthPos.x;
+        const dy = pos.y - earthPos.y;
+        const dz = pos.z - earthPos.z;
+        const distanceFromEarth = Math.sqrt(dx * dx + dy * dy + dz * dz);
+
+        // Distance from Sun in AU
+        const distanceFromSun = elements.a;
+
+        // Estimated travel time (simplified: assuming constant velocity of 50,000 km/h)
+        // Convert scene units back to AU, then to km, then calculate time
+        const distanceAU = distanceFromEarth * elements.a / auToScene(elements.a);
+        const distanceKm = distanceAU * 149597870.7; // 1 AU in km
+        const velocityKmH = 50000;
+        const travelTimeHours = distanceKm / velocityKmH;
+        const travelTimeDays = travelTimeHours / 24;
+
+        // Planet data
+        const planetDetails = {
+            mercury: { mass: '3.3×10²³ kg', diameter: '4,879 km', type: 'Rocky', moons: 0, description: 'Closest planet to the Sun, extreme temperatures' },
+            venus: { mass: '4.87×10²⁴ kg', diameter: '12,104 km', type: 'Rocky', moons: 0, description: 'Hottest planet, thick toxic atmosphere' },
+            earth: { mass: '5.97×10²⁴ kg', diameter: '12,742 km', type: 'Rocky', moons: 1, description: 'Our home planet, only known planet with life' },
+            mars: { mass: '6.42×10²³ kg', diameter: '6,779 km', type: 'Rocky', moons: 2, description: 'The Red Planet, target for colonization' },
+            jupiter: { mass: '1.90×10²⁷ kg', diameter: '139,820 km', type: 'Gas Giant', moons: 95, description: 'Largest planet, powerful magnetic field' },
+            saturn: { mass: '5.68×10²⁶ kg', diameter: '116,460 km', type: 'Gas Giant', moons: 146, description: 'Famous for its spectacular ring system' },
+            uranus: { mass: '8.68×10²⁵ kg', diameter: '50,724 km', type: 'Ice Giant', moons: 28, description: 'Tilted on its side, pale blue color' },
+            neptune: { mass: '1.02×10²⁶ kg', diameter: '49,244 km', type: 'Ice Giant', moons: 16, description: 'Windiest planet, deep blue color' }
+        };
+
+        const details = planetDetails[name] || {};
+
+        return {
+            name: name.charAt(0).toUpperCase() + name.slice(1),
+            mass: details.mass,
+            diameter: details.diameter,
+            type: details.type,
+            moons: details.moons,
+            description: details.description,
+            distanceFromSun: distanceFromSun.toFixed(2) + ' AU',
+            distanceFromEarth: distanceAU.toFixed(2) + ' AU',
+            travelTime: travelTimeDays.toFixed(1) + ' days',
+            orbitalPeriod: elements.period.toFixed(2) + ' years',
+            eccentricity: elements.e.toFixed(3)
+        };
+    }
+
     dispose() {
         window.removeEventListener('resize', this._boundResize);
+        this.canvas.removeEventListener('click', this._boundClick);
         this.controls?.dispose();
         this.renderer?.dispose();
     }
