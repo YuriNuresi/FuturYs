@@ -639,7 +639,7 @@
             "id": "card_213",
             "title": "Create resource API endpoints",
             "description": "API GET/UPDATE risorse",
-            "column_id": "col_1",
+            "column_id": "col_3",
             "swimlane_id": "lane_3",
             "labels": ["lbl_2"],
             "priority": "high",
