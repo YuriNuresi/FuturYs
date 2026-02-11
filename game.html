@@ -342,6 +342,7 @@
     <div id="nav-menu">
         <button class="nav-btn active" data-view="solar-system">🌌 Solar System</button>
         <button class="nav-btn" data-view="missions">🚀 Missions</button>
+        <button class="nav-btn" data-view="buildings">🏗️ Buildings</button>
         <button class="nav-btn" data-view="research">🔬 Research</button>
         <button class="nav-btn" data-view="economy">💰 Economy</button>
     </div>
@@ -432,6 +433,45 @@
         <div id="missions-list"></div>
     </div>
 
+    <!-- Buildings Management Panel -->
+    <div id="buildings-panel" style="position: fixed; top: 80px; left: 20px; background: rgba(0,0,0,0.85); border: 2px solid #4fd1c7; border-radius: 8px; padding: 15px; width: 350px; max-height: 70vh; overflow-y: auto; z-index: 100; display: none;">
+        <h3 style="color: #4fd1c7; font-size: 16px; margin: 0 0 15px 0;">🏗️ Earth Management</h3>
+
+        <!-- Tabs -->
+        <div style="display: flex; gap: 10px; margin-bottom: 15px; border-bottom: 1px solid rgba(79,209,199,0.3); padding-bottom: 10px;">
+            <button id="buildings-tab-build" class="buildings-tab active" style="flex: 1; padding: 8px; background: rgba(79,209,199,0.2); border: 1px solid #4fd1c7; border-radius: 4px; color: #4fd1c7; cursor: pointer; transition: all 0.2s;">
+                🏗️ Build
+            </button>
+            <button id="buildings-tab-list" class="buildings-tab" style="flex: 1; padding: 8px; background: rgba(79,209,199,0.1); border: 1px solid rgba(79,209,199,0.3); border-radius: 4px; color: #4fd1c7; cursor: pointer; transition: all 0.2s;">
+                📋 Buildings
+            </button>
+        </div>
+
+        <!-- Build Tab Content -->
+        <div id="buildings-build-content">
+            <p style="color: #888; font-size: 12px; margin-bottom: 10px;">Available buildings for construction:</p>
+            <div id="buildings-available-list">
+                <!-- Will be populated dynamically -->
+            </div>
+        </div>
+
+        <!-- Buildings List Tab Content -->
+        <div id="buildings-list-content" style="display: none;">
+            <div style="margin-bottom: 15px;">
+                <h4 style="color: #4fd1c7; font-size: 13px; margin: 0 0 8px 0;">🔨 In Construction</h4>
+                <div id="buildings-in-construction">
+                    <div style="color: #888; font-size: 12px;">No buildings in construction</div>
+                </div>
+            </div>
+            <div>
+                <h4 style="color: #4fd1c7; font-size: 13px; margin: 0 0 8px 0;">✅ Completed</h4>
+                <div id="buildings-completed">
+                    <div style="color: #888; font-size: 12px;">No buildings completed</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <style>
         /* Mission item styles */
         .mission-item {
@@ -463,6 +503,100 @@
         #toggle-trajectories-btn.active {
             background: rgba(79,209,199,0.4);
         }
+
+        /* Buildings Panel Styles */
+        .buildings-tab:hover {
+            background: rgba(79,209,199,0.3);
+        }
+
+        .buildings-tab.active {
+            background: rgba(79,209,199,0.4) !important;
+            border-color: #4fd1c7 !important;
+        }
+
+        .building-card {
+            background: rgba(15,23,42,0.8);
+            border: 1px solid rgba(79,209,199,0.3);
+            border-radius: 6px;
+            padding: 12px;
+            margin-bottom: 10px;
+            transition: all 0.2s;
+        }
+
+        .building-card:hover {
+            border-color: #4fd1c7;
+            background: rgba(15,23,42,1);
+        }
+
+        .building-name {
+            color: #4fd1c7;
+            font-size: 14px;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+
+        .building-desc {
+            color: #cbd5e0;
+            font-size: 11px;
+            margin-bottom: 8px;
+            line-height: 1.3;
+        }
+
+        .building-costs {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            font-size: 11px;
+            margin-bottom: 8px;
+        }
+
+        .cost-item {
+            background: rgba(79,209,199,0.1);
+            padding: 3px 6px;
+            border-radius: 3px;
+            color: #a0aec0;
+        }
+
+        .build-btn {
+            width: 100%;
+            padding: 8px;
+            background: linear-gradient(135deg, #4fd1c7, #63b3ed);
+            border: none;
+            border-radius: 4px;
+            color: white;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .build-btn:hover:not(:disabled) {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(79,209,199,0.4);
+        }
+
+        .build-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            background: #4a5568;
+        }
+
+        .building-progress {
+            margin-top: 5px;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 6px;
+            background: rgba(0,0,0,0.5);
+            border-radius: 3px;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #4fd1c7, #63b3ed);
+            transition: width 0.3s ease;
+        }
     </style>
 
     <script type="module">
@@ -471,6 +605,7 @@
         import { UIController } from './js/ui/UIController.js?v=20250210142500';
         import { ResourceManager } from './js/core/ResourceManager.js?v=20250211';
         import { MissionManager } from './js/core/MissionManager.js?v=20250211';
+        import { BuildingManager } from './js/core/BuildingManager.js?v=20250211';
         import { SaveManager } from './js/core/SaveManager.js?v=20250211';
         import { TimeManager } from './js/core/TimeManager.js?v=20250211';
         import { NotificationManager } from './js/ui/NotificationManager.js?v=20250211';
@@ -479,8 +614,9 @@
         const uiController = new UIController();
         const resourceManager = new ResourceManager({ code: 'USA' });
         const missionManager = new MissionManager();
-        const saveManager = new SaveManager();
         const timeManager = new TimeManager();
+        const buildingManager = new BuildingManager(resourceManager, timeManager);
+        const saveManager = new SaveManager();
         const notificationManager = new NotificationManager();
 
         let selectedPlanet = null;
