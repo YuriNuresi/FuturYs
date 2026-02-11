@@ -88,16 +88,17 @@ export class ResourceManager {
     
     setBaseProduction() {
         // Base production per game year
-        // Will be scaled to real time (24h real = 1 year game)
+        // Balanced for MVP: 24h real = 1 year game, Mars mission achievable in 2-3 days
+        // Starting resources: $1M, 10K science, 500M population
         this.production = {
-            budget: 100000,      // 100K budget per year
-            science: 1000,       // 1K science per year
-            population: 0.01,    // 1% population growth per year
-            energy: 100,         // 100 energy per year
-            materials: 50,       // 50 materials per year
-            food: 100,          // 100 food per year
-            water: 100,         // 100 water per year
-            oxygen: 100         // 100 oxygen per year
+            budget: 250000,      // 250K per year (Mars mission $500K achievable in ~2 days)
+            science: 1500,       // 1.5K per year (Mars needs 2K science, achievable in ~1.5 days)
+            population: 0.02,    // 2% growth per year (doubles population in ~35 years)
+            energy: 150,         // 150 per year (Mars needs 200 energy, ~1.5 days)
+            materials: 120,      // 120 per year (balanced for building construction)
+            food: 120,           // 120 per year (sustains population growth)
+            water: 120,          // 120 per year (sustains population growth)
+            oxygen: 100          // 100 per year (life support baseline)
         };
     }
     

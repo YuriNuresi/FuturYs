@@ -342,6 +342,7 @@
     <div id="nav-menu">
         <button class="nav-btn active" data-view="solar-system">🌌 Solar System</button>
         <button class="nav-btn" data-view="missions">🚀 Missions</button>
+        <button class="nav-btn" data-view="buildings">🏗️ Buildings</button>
         <button class="nav-btn" data-view="research">🔬 Research</button>
         <button class="nav-btn" data-view="economy">💰 Economy</button>
     </div>
@@ -432,6 +433,45 @@
         <div id="missions-list"></div>
     </div>
 
+    <!-- Buildings Management Panel -->
+    <div id="buildings-panel" style="position: fixed; top: 80px; left: 20px; background: rgba(0,0,0,0.85); border: 2px solid #4fd1c7; border-radius: 8px; padding: 15px; width: 350px; max-height: 70vh; overflow-y: auto; z-index: 100; display: none;">
+        <h3 style="color: #4fd1c7; font-size: 16px; margin: 0 0 15px 0;">🏗️ Earth Management</h3>
+
+        <!-- Tabs -->
+        <div style="display: flex; gap: 10px; margin-bottom: 15px; border-bottom: 1px solid rgba(79,209,199,0.3); padding-bottom: 10px;">
+            <button id="buildings-tab-build" class="buildings-tab active" style="flex: 1; padding: 8px; background: rgba(79,209,199,0.2); border: 1px solid #4fd1c7; border-radius: 4px; color: #4fd1c7; cursor: pointer; transition: all 0.2s;">
+                🏗️ Build
+            </button>
+            <button id="buildings-tab-list" class="buildings-tab" style="flex: 1; padding: 8px; background: rgba(79,209,199,0.1); border: 1px solid rgba(79,209,199,0.3); border-radius: 4px; color: #4fd1c7; cursor: pointer; transition: all 0.2s;">
+                📋 Buildings
+            </button>
+        </div>
+
+        <!-- Build Tab Content -->
+        <div id="buildings-build-content">
+            <p style="color: #888; font-size: 12px; margin-bottom: 10px;">Available buildings for construction:</p>
+            <div id="buildings-available-list">
+                <!-- Will be populated dynamically -->
+            </div>
+        </div>
+
+        <!-- Buildings List Tab Content -->
+        <div id="buildings-list-content" style="display: none;">
+            <div style="margin-bottom: 15px;">
+                <h4 style="color: #4fd1c7; font-size: 13px; margin: 0 0 8px 0;">🔨 In Construction</h4>
+                <div id="buildings-in-construction">
+                    <div style="color: #888; font-size: 12px;">No buildings in construction</div>
+                </div>
+            </div>
+            <div>
+                <h4 style="color: #4fd1c7; font-size: 13px; margin: 0 0 8px 0;">✅ Completed</h4>
+                <div id="buildings-completed">
+                    <div style="color: #888; font-size: 12px;">No buildings completed</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <style>
         /* Mission item styles */
         .mission-item {
@@ -463,6 +503,100 @@
         #toggle-trajectories-btn.active {
             background: rgba(79,209,199,0.4);
         }
+
+        /* Buildings Panel Styles */
+        .buildings-tab:hover {
+            background: rgba(79,209,199,0.3);
+        }
+
+        .buildings-tab.active {
+            background: rgba(79,209,199,0.4) !important;
+            border-color: #4fd1c7 !important;
+        }
+
+        .building-card {
+            background: rgba(15,23,42,0.8);
+            border: 1px solid rgba(79,209,199,0.3);
+            border-radius: 6px;
+            padding: 12px;
+            margin-bottom: 10px;
+            transition: all 0.2s;
+        }
+
+        .building-card:hover {
+            border-color: #4fd1c7;
+            background: rgba(15,23,42,1);
+        }
+
+        .building-name {
+            color: #4fd1c7;
+            font-size: 14px;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+
+        .building-desc {
+            color: #cbd5e0;
+            font-size: 11px;
+            margin-bottom: 8px;
+            line-height: 1.3;
+        }
+
+        .building-costs {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            font-size: 11px;
+            margin-bottom: 8px;
+        }
+
+        .cost-item {
+            background: rgba(79,209,199,0.1);
+            padding: 3px 6px;
+            border-radius: 3px;
+            color: #a0aec0;
+        }
+
+        .build-btn {
+            width: 100%;
+            padding: 8px;
+            background: linear-gradient(135deg, #4fd1c7, #63b3ed);
+            border: none;
+            border-radius: 4px;
+            color: white;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .build-btn:hover:not(:disabled) {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(79,209,199,0.4);
+        }
+
+        .build-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            background: #4a5568;
+        }
+
+        .building-progress {
+            margin-top: 5px;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 6px;
+            background: rgba(0,0,0,0.5);
+            border-radius: 3px;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #4fd1c7, #63b3ed);
+            transition: width 0.3s ease;
+        }
     </style>
 
     <script type="module">
@@ -471,6 +605,7 @@
         import { UIController } from './js/ui/UIController.js?v=20250210142500';
         import { ResourceManager } from './js/core/ResourceManager.js?v=20250211';
         import { MissionManager } from './js/core/MissionManager.js?v=20250211';
+        import { BuildingManager } from './js/core/BuildingManager.js?v=20250211';
         import { SaveManager } from './js/core/SaveManager.js?v=20250211';
         import { TimeManager } from './js/core/TimeManager.js?v=20250211';
         import { NotificationManager } from './js/ui/NotificationManager.js?v=20250211';
@@ -479,8 +614,9 @@
         const uiController = new UIController();
         const resourceManager = new ResourceManager({ code: 'USA' });
         const missionManager = new MissionManager();
-        const saveManager = new SaveManager();
         const timeManager = new TimeManager();
+        const buildingManager = new BuildingManager(resourceManager, timeManager);
+        const saveManager = new SaveManager();
         const notificationManager = new NotificationManager();
 
         let selectedPlanet = null;
@@ -491,6 +627,18 @@
             btn.addEventListener('click', () => {
                 document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
                 btn.classList.add('active');
+
+                // Show/hide buildings panel based on view
+                const view = btn.dataset.view;
+                const buildingsPanel = document.getElementById('buildings-panel');
+
+                if (view === 'buildings') {
+                    buildingsPanel.style.display = 'block';
+                    updateBuildingsPanel(); // Refresh panel when opened
+                } else {
+                    buildingsPanel.style.display = 'none';
+                }
+
                 notificationManager.info('Navigation', `Switched to ${btn.dataset.view}`, 2000);
             });
         });
@@ -525,31 +673,50 @@
         document.getElementById('launch-mission-btn').addEventListener('click', async () => {
             if (!selectedPlanet) return;
 
-            const costs = missionManager.getMissionCost(selectedPlanet.name);
+            const destination = selectedPlanet.name;
+
+            // Special handling for Mars mission (card_401)
+            if (destination === 'Mars') {
+                const canLaunch = missionManager.canLaunchMarsMission();
+                if (!canLaunch.can) {
+                    notificationManager.error('Mission Not Available', canLaunch.reason);
+                    return;
+                }
+            }
+
+            const costs = missionManager.getMissionCost(destination);
 
             if (!resourceManager.canAfford(costs)) {
-                notificationManager.error('Mission Failed', 'Insufficient resources!');
+                notificationManager.error('Mission Failed', 'Insufficient resources! Need: ' +
+                    `$${costs.budget.toLocaleString()}, ${costs.science} science, ${costs.energy} energy, ${costs.materials} materials`);
                 return;
             }
 
             const result = resourceManager.consume(costs);
 
             if (result.success) {
+                const travelTime = missionManager.getTravelTime('Earth', destination);
                 const mission = {
                     id: Date.now(),
-                    name: `Mission to ${selectedPlanet.name}`,
+                    name: destination === 'Mars' ? 'First Mars Expedition' : `Mission to ${destination}`,
                     origin: 'Earth',
-                    destination: selectedPlanet.name,
+                    destination: destination,
+                    mission_type: destination === 'Mars' ? 'COLONIZATION' : 'EXPLORATION',
                     status: 'TRAVELING',
                     launch_year: currentGameYear,
-                    arrival_year: currentGameYear + missionManager.getTravelTime('Earth', selectedPlanet.name),
-                    travel_time_years: missionManager.getTravelTime('Earth', selectedPlanet.name),
+                    arrival_year: currentGameYear + travelTime,
+                    travel_time_years: travelTime,
                     progress: 0
                 };
 
                 missionManager.addMission(mission);
                 updateMissionsDisplay();
-                notificationManager.success('Mission Launched', `Mission to ${selectedPlanet.name} is underway!`);
+
+                const eta = missionManager.formatTravelTime(travelTime);
+                notificationManager.success('Mission Launched! 🚀',
+                    `${mission.name} is underway! ETA: ${eta}`, 5000);
+
+                console.log(`🚀 Mission to ${destination} launched. Arrival in ${eta}`);
             }
         });
 
@@ -576,6 +743,13 @@
         uiController.onMissionClick = (missionId) => {
             console.log(`Focusing on mission ${missionId}`);
             trajectoryRenderer.focusOnMission(missionId, renderer.camera, renderer.controls);
+        };
+
+        // Initialize building manager
+        await buildingManager.init();
+        buildingManager.onBuildingComplete = (building) => {
+            notificationManager.success('Building Complete!', `${building.name} on ${building.planet} is now operational!`, 5000);
+            updateBuildingsPanel();
         };
 
         // Initialize time manager
@@ -690,15 +864,20 @@
 
             missionsListEl.innerHTML = activeMissions.map(m => {
                 const progress = (m.progress * 100).toFixed(0);
-                const yearsRemaining = (m.arrival_year - currentGameYear).toFixed(1);
+                const yearsRemaining = m.arrival_year - currentGameYear;
+                const etaRealTime = missionManager.formatTravelTime(yearsRemaining);
+
+                // Add mission type badge for colonization missions
+                const badge = m.mission_type === 'COLONIZATION' ? '🏗️ ' : '';
+
                 return `
                     <div class="mission-item" data-mission-id="${m.id}" title="Click to focus on mission trajectory">
                         <div style="display: flex; justify-content: space-between; font-size: 12px; color: #fff; margin-bottom: 4px;">
-                            <span>🚀 ${m.origin} → ${m.destination}</span>
-                            <span style="color: #4fd1c7;">${yearsRemaining}y</span>
+                            <span>${badge}${m.name || (m.origin + ' → ' + m.destination)}</span>
+                            <span style="color: #4fd1c7; font-size: 11px;">${etaRealTime}</span>
                         </div>
                         <div style="width: 100%; height: 4px; background: rgba(0,0,0,0.5); border-radius: 2px;">
-                            <div style="width: ${progress}%; height: 100%; background: linear-gradient(90deg, #ff4444 0%, #44ff44 100%); border-radius: 2px;"></div>
+                            <div style="width: ${progress}%; height: 100%; background: linear-gradient(90deg, #ff4444 0%, #44ff44 100%); border-radius: 2px; transition: width 0.3s;"></div>
                         </div>
                         <div style="font-size: 10px; color: #888; margin-top: 2px;">
                             Progress: ${progress}%
@@ -716,9 +895,157 @@
             setTimeout(() => uiController.setupMissionClickHandlers(), 0);
         }
 
+        // Buildings Panel Management
+        function updateBuildingsPanel() {
+            // Populate available buildings
+            const availableList = document.getElementById('buildings-available-list');
+            const buildings = buildingManager.getAvailableBuildings();
+
+            availableList.innerHTML = buildings.map(building => {
+                const icon = buildingManager.getBuildingIcon(building.building_code);
+                const count = buildingManager.getBuildingCount(building.building_code, 'Earth');
+
+                return `
+                    <div class="building-card">
+                        <div class="building-name">${icon} ${building.name} (${count}/${building.max_per_planet})</div>
+                        <div class="building-desc">${building.description}</div>
+                        <div class="building-costs">
+                            <span class="cost-item">💰 $${(building.budget_cost / 1000).toFixed(0)}K</span>
+                            <span class="cost-item">🔩 ${building.materials_cost}</span>
+                            <span class="cost-item">⚡ ${building.energy_cost}</span>
+                            <span class="cost-item">⏱️ ${building.construction_time_years}y</span>
+                        </div>
+                        <button class="build-btn" data-building-code="${building.building_code}">
+                            🏗️ Build
+                        </button>
+                    </div>
+                `;
+            }).join('');
+
+            // Setup build button handlers
+            document.querySelectorAll('.build-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const buildingCode = btn.dataset.buildingCode;
+                    handleBuildClick(buildingCode);
+                });
+            });
+
+            // Update construction list
+            updateConstructionList();
+        }
+
+        function updateConstructionList() {
+            // In construction
+            const inConstructionEl = document.getElementById('buildings-in-construction');
+            const inConstruction = buildingManager.getBuildingsInConstruction();
+
+            if (inConstruction.length === 0) {
+                inConstructionEl.innerHTML = '<div style="color: #888; font-size: 12px;">No buildings in construction</div>';
+            } else {
+                inConstructionEl.innerHTML = inConstruction.map(b => {
+                    const icon = buildingManager.getBuildingIcon(b.building_code);
+                    const progress = (b.progress * 100).toFixed(0);
+                    const yearsLeft = (b.construction_completion_year - currentGameYear).toFixed(1);
+
+                    return `
+                        <div class="building-card">
+                            <div class="building-name">${icon} ${b.name}</div>
+                            <div style="font-size: 11px; color: #a0aec0; margin-bottom: 5px;">
+                                ⏱️ ${yearsLeft} years remaining
+                            </div>
+                            <div class="building-progress">
+                                <div class="progress-bar">
+                                    <div class="progress-fill" style="width: ${progress}%"></div>
+                                </div>
+                                <div style="font-size: 10px; color: #888; margin-top: 2px;">${progress}%</div>
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+            }
+
+            // Completed buildings
+            const completedEl = document.getElementById('buildings-completed');
+            const completed = buildingManager.getPlanetBuildings('Earth').filter(b => b.status === 'COMPLETED');
+
+            if (completed.length === 0) {
+                completedEl.innerHTML = '<div style="color: #888; font-size: 12px;">No buildings completed</div>';
+            } else {
+                completedEl.innerHTML = completed.map(b => {
+                    const icon = buildingManager.getBuildingIcon(b.building_code);
+                    return `
+                        <div style="padding: 8px; background: rgba(79,209,199,0.1); border-radius: 4px; margin-bottom: 5px;">
+                            <span style="font-size: 12px;">${icon} ${b.name}</span>
+                        </div>
+                    `;
+                }).join('');
+            }
+        }
+
+        function handleBuildClick(buildingCode) {
+            const result = buildingManager.startConstruction(buildingCode, 'Earth');
+
+            if (result.success) {
+                notificationManager.success('Construction Started', `Building ${result.building.name} on Earth`, 3000);
+                updateBuildingsPanel();
+                updateResourcesHUD();
+            } else {
+                notificationManager.error('Cannot Build', result.error, 3000);
+            }
+        }
+
+        // Buildings tab switching
+        document.querySelectorAll('.buildings-tab').forEach(tab => {
+            tab.addEventListener('click', (e) => {
+                const tabId = e.target.id;
+
+                // Update tab styles
+                document.querySelectorAll('.buildings-tab').forEach(t => t.classList.remove('active'));
+                e.target.classList.add('active');
+
+                // Show/hide content
+                if (tabId === 'buildings-tab-build') {
+                    document.getElementById('buildings-build-content').style.display = 'block';
+                    document.getElementById('buildings-list-content').style.display = 'none';
+                } else {
+                    document.getElementById('buildings-build-content').style.display = 'none';
+                    document.getElementById('buildings-list-content').style.display = 'block';
+                }
+            });
+        });
+
+        // Initialize buildings panel
+        updateBuildingsPanel();
+
         // Mission completion notification
-        missionManager.onMissionComplete((mission) => {
-            notificationManager.success('Mission Complete!', `Mission to ${mission.destination} has arrived successfully!`, 8000);
+        missionManager.onMissionComplete((missionResult) => {
+            const mission = missionResult.mission;
+
+            // Apply Mars mission rewards (card_401)
+            if (missionResult.rewards) {
+                const rewards = missionResult.rewards;
+
+                if (rewards.science) {
+                    resourceManager.add({ science: rewards.science });
+                    console.log(`🎁 Mars reward: +${rewards.science} science`);
+                }
+
+                if (rewards.population) {
+                    resourceManager.add({ population: rewards.population });
+                    console.log(`🎁 Mars reward: +${rewards.population} population (Mars colonists)`);
+                }
+
+                updateResourcesHUD();
+
+                // Show special notification for Mars completion
+                notificationManager.success('🎉 Mars Colony Established!',
+                    `First human settlement on Mars! +${rewards.science} science, +${rewards.population} colonists. Mars colonization unlocked!`, 10000);
+            } else {
+                // Standard mission completion
+                notificationManager.success('Mission Complete! 🎉',
+                    `Mission to ${mission.destination} has arrived successfully!`, 8000);
+            }
+
             updateMissionsDisplay();
         });
 
@@ -747,10 +1074,24 @@
             // Update resources
             resourceManager.update(deltaTime);
 
-            // Update missions (less frequently)
+            // Update missions and buildings (less frequently)
             if (now - lastMissionUpdate > 1000) {
                 missionManager.update(gameYear);
                 updateMissionsDisplay();
+
+                // Update building construction progress
+                const completedBuildings = buildingManager.update(gameYear);
+                if (completedBuildings.length > 0) {
+                    // Apply production bonuses from newly completed buildings
+                    buildingManager.applyProductionBonuses();
+                }
+
+                // Refresh buildings panel if visible
+                const buildingsPanel = document.getElementById('buildings-panel');
+                if (buildingsPanel.style.display !== 'none') {
+                    updateConstructionList(); // Update progress bars in real-time
+                }
+
                 lastMissionUpdate = now;
             }
 

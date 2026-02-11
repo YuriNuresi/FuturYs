@@ -10,14 +10,15 @@ export class MissionManager {
         this.onMissionCompleteCallbacks = [];
         this.onMissionUpdateCallbacks = [];
 
-        // Travel times (game years) - synced with server
+        // Travel times (game years) - balanced for gameplay
+        // Note: 24h real = 1 year game, so these times represent real-world duration
         this.travelTimes = {
-            'Earth-Moon': 0.003,
-            'Earth-Mars': 0.12,
-            'Earth-Jupiter': 0.25,
-            'Earth-Saturn': 0.35,
-            'Earth-Uranus': 0.50,
-            'Earth-Neptune': 0.65
+            'Earth-Moon': 0.125,      // 3 hours real (~1 game month)
+            'Earth-Mars': 2.5,        // 2.5 days real (6-9 months narrative)
+            'Earth-Jupiter': 5.5,     // 5.5 days real (12-18 months narrative)
+            'Earth-Saturn': 8.0,      // 8 days real (2-3 years narrative)
+            'Earth-Uranus': 12.0,     // 12 days real (3-4 years narrative)
+            'Earth-Neptune': 15.0     // 15 days real (4-5 years narrative)
         };
 
         // Mission costs
@@ -140,8 +141,16 @@ export class MissionManager {
      * Notify mission complete
      */
     notifyMissionComplete(mission) {
+        // Special handling for Mars mission completion
+        let missionResult = { mission };
+
+        if (mission.destination === 'Mars' && mission.mission_type === 'COLONIZATION') {
+            const marsCompletion = this.handleMarsMissionComplete(mission);
+            missionResult = { ...missionResult, ...marsCompletion };
+        }
+
         for (const callback of this.onMissionCompleteCallbacks) {
-            callback(mission);
+            callback(missionResult);
         }
     }
 
@@ -165,6 +174,102 @@ export class MissionManager {
             const days = hours / 24;
             return `${days.toFixed(1)} days`;
         }
+    }
+
+    /**
+     * Check if Earth-to-Mars mission is available
+     */
+    canLaunchMarsMission() {
+        // Check if player has already completed Mars mission
+        const completedMars = Array.from(this.missions.values()).find(
+            m => m.destination === 'Mars' && m.status === 'ARRIVED'
+        );
+
+        if (completedMars) {
+            return { can: false, reason: 'Mars already colonized' };
+        }
+
+        // Check if there's already a mission in progress to Mars
+        const activeMars = Array.from(this.missions.values()).find(
+            m => m.destination === 'Mars' && m.status === 'TRAVELING'
+        );
+
+        if (activeMars) {
+            return { can: false, reason: 'Mission to Mars already in progress' };
+        }
+
+        return { can: true };
+    }
+
+    /**
+     * Launch Earth-to-Mars mission (card_401)
+     * This is the primary mission in the MVP gameplay loop
+     */
+    async launchMarsMission(sessionId, resourceManager, currentYear) {
+        const canLaunch = this.canLaunchMarsMission();
+        if (!canLaunch.can) {
+            return { success: false, error: canLaunch.reason };
+        }
+
+        // Get Mars mission cost
+        const cost = this.getMissionCost('Mars');
+
+        // Validate and consume resources
+        const consumeResult = resourceManager.consume(cost);
+        if (!consumeResult.success) {
+            return { success: false, error: 'Insufficient resources for Mars mission' };
+        }
+
+        // Calculate travel time
+        const travelTime = this.getTravelTime('Earth', 'Mars');
+        const arrivalYear = currentYear + travelTime;
+
+        // Create mission data
+        const missionData = {
+            name: 'First Mars Expedition',
+            origin: 'Earth',
+            destination: 'Mars',
+            mission_type: 'COLONIZATION',
+            launch_year: currentYear,
+            arrival_year: arrivalYear,
+            travel_time_years: travelTime
+        };
+
+        // Create mission via API
+        const result = await this.createMission(sessionId, missionData);
+
+        if (result.success) {
+            console.log(`🚀 Mars mission launched! ETA: ${arrivalYear.toFixed(2)} (${this.formatTravelTime(travelTime)})`);
+            return {
+                success: true,
+                mission: result.mission,
+                message: `Mars Expedition launched successfully! Arrival in ${this.formatTravelTime(travelTime)}.`
+            };
+        }
+
+        return result;
+    }
+
+    /**
+     * Handle Mars mission completion (called when mission arrives)
+     */
+    handleMarsMissionComplete(mission) {
+        console.log('🎉 Mars mission completed! Colony established.');
+
+        // Return rewards and unlock data
+        return {
+            rewards: {
+                science: 5000,      // Bonus science points
+                prestige: 100,      // Prestige/reputation points
+                population: 50      // Initial Mars colonists
+            },
+            unlocks: {
+                mars_colonization: true,
+                mars_buildings: true,
+                mars_resources: true
+            },
+            message: 'Mars colony successfully established! You can now build on Mars.'
+        };
     }
 
     /**
