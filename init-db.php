@@ -113,8 +113,12 @@ function createEmergencySchema($db) {
         INSERT OR IGNORE INTO nations (code, name, full_name, starting_budget, color_primary) VALUES
         ('USA', 'USA', 'United States of America', 2000000000, '#1f4e79'),
         ('CHN', 'China', 'People''s Republic of China', 1800000000, '#de2910'),
-        ('RUS', 'Russia', 'Russian Federation', 1200000000, '#1c3578'), 
-        ('ESA', 'ESA', 'European Space Agency', 1500000000, '#003399');
+        ('RUS', 'Russia', 'Russian Federation', 1200000000, '#1c3578'),
+        ('ESA', 'ESA', 'European Space Agency', 1500000000, '#003399'),
+        ('IND', 'India', 'Indian Space Research Organisation', 1600000000, '#FF9933'),
+        ('JPN', 'Japan', 'Japan Aerospace Exploration Agency', 1400000000, '#BC002D'),
+        ('UAE', 'United Arab Emirates', 'UAE Space Agency', 1800000000, '#00732F'),
+        ('BRA', 'Brazil', 'Agência Espacial Brasileira / ALCE', 1100000000, '#009739');
         
         CREATE TABLE IF NOT EXISTS planets (
             id INTEGER PRIMARY KEY AUTOINCREMENT,

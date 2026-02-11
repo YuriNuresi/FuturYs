@@ -4,7 +4,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>🚀 FuturY - Strategia Galattica di Sopravvivenza</title>
-    
+
+    <!-- External CSS -->
+    <link rel="stylesheet" href="css/nation-selector.css">
+
     <!-- CSS -->
     <style>
         * {
@@ -239,11 +242,34 @@
             verso un futuro tra le stelle. Il tempo scorre: ogni giorno reale equivale a un anno di gioco.
         </p>
         
-        <!-- Action buttons -->
-        <div class="buttons">
-            <a href="game.html" class="btn btn-primary" onclick="startNewGame()">
+        <!-- Nation Selector -->
+        <div id="nation-selector" class="nation-selector-container" style="display: none;">
+            <h2 class="selector-title">Select Your Nation</h2>
+            <p class="selector-subtitle">Year 2100 - Choose your path among the stars</p>
+
+            <div id="world-map-container" class="world-map-wrapper">
+                <!-- Map loaded by NationSelector.js -->
+            </div>
+
+            <div id="nation-tooltip" class="nation-tooltip hidden">
+                <!-- Stats displayed on hover -->
+            </div>
+
+            <div class="selection-actions">
+                <div id="selected-nation-display" class="selected-nation-info hidden">
+                    <!-- Selected nation name -->
+                </div>
+                <button id="confirm-nation-btn" class="btn btn-primary" disabled>
+                    🚀 Begin Your Journey
+                </button>
+            </div>
+        </div>
+
+        <!-- Action buttons (initial menu) -->
+        <div class="buttons" id="main-menu-buttons">
+            <button class="btn btn-primary" onclick="showNationSelector()">
                 🚀 Nuova Partita
-            </a>
+            </button>
             <button class="btn btn-secondary" onclick="loadGame()">
                 💾 Carica Partita
             </button>
@@ -323,32 +349,69 @@
         }
         
         // ===========================
-        // GAME FUNCTIONS
+        // NATION SELECTOR
         // ===========================
-        
-        async function startNewGame() {
-            updateStatus('Inizializzazione nuova partita...', 'connecting');
-            
+
+        let nationSelectorInstance = null;
+
+        function showNationSelector() {
+            // Hide main menu
+            document.getElementById('main-menu-buttons').style.display = 'none';
+            document.querySelector('.features').style.display = 'none';
+            document.querySelector('.description').style.display = 'none';
+
+            // Show nation selector
+            document.getElementById('nation-selector').style.display = 'flex';
+
+            // Initialize nation selector if not already done
+            if (!nationSelectorInstance) {
+                import('./js/ui/NationSelector.js').then(module => {
+                    const NationSelector = module.NationSelector;
+                    nationSelectorInstance = new NationSelector();
+
+                    // Set callback for nation confirmation
+                    nationSelectorInstance.onConfirm = (nationCode) => {
+                        startGameWithNation(nationCode);
+                    };
+
+                    // Initialize
+                    nationSelectorInstance.init();
+                }).catch(error => {
+                    console.error('Failed to load NationSelector:', error);
+                    updateStatus('Errore caricamento nation selector', 'error');
+                });
+            }
+        }
+
+        async function startGameWithNation(nationCode) {
+            updateStatus(`Inizializzazione partita con ${nationCode}...`, 'connecting');
+
             try {
+                // Store selected nation in sessionStorage
+                sessionStorage.setItem('selectedNation', nationCode);
+
                 // Test database connection first
                 const dbTest = await testDatabaseConnection();
                 if (!dbTest) {
                     throw new Error('Database non disponibile');
                 }
-                
-                // TODO: Create new game session
+
                 updateStatus('Reindirizzamento...', 'connected');
-                
-                // Redirect to game
+
+                // Redirect to game with nation parameter
                 setTimeout(() => {
-                    window.location.href = 'game.html';
-                }, 1000);
-                
+                    window.location.href = `game.html?nation=${nationCode}`;
+                }, 500);
+
             } catch (error) {
                 updateStatus('Errore: ' + error.message, 'error');
                 console.error('Start game error:', error);
             }
         }
+
+        // ===========================
+        // GAME FUNCTIONS
+        // ===========================
         
         async function loadGame() {
             updateStatus('Caricamento partite salvate...', 'connecting');
@@ -437,11 +500,15 @@
         // ===========================
         // KEYBOARD SHORTCUTS
         // ===========================
-        
+
         document.addEventListener('keydown', function(event) {
             switch(event.key) {
                 case 'Enter':
-                    startNewGame();
+                    // Show nation selector if main menu is visible
+                    const mainMenu = document.getElementById('main-menu-buttons');
+                    if (mainMenu && mainMenu.style.display !== 'none') {
+                        showNationSelector();
+                    }
                     break;
                 case 'l':
                 case 'L':
