@@ -1,9 +1,12 @@
 export class UIController {
     constructor() {
         this.onLaunchMission = null;
+        this.onMissionClick = null; // Callback for mission click
+        this.onToggleTrajectories = null; // Callback for trajectory toggle
         this.planetPanel = null;
         this.closeBtn = null;
         this._initPlanetPanel();
+        this._initMissionPanel();
     }
 
     showLoading(text) {
@@ -76,5 +79,45 @@ export class UIController {
         if (num >= 1000000) return (num/1000000).toFixed(1) + 'M';
         if (num >= 1000) return (num/1000).toFixed(1) + 'K';
         return Math.round(num);
+    }
+
+    /**
+     * Initialize mission panel controls
+     */
+    _initMissionPanel() {
+        // Toggle trajectories button
+        const toggleBtn = document.getElementById('toggle-trajectories-btn');
+        if (toggleBtn) {
+            toggleBtn.addEventListener('click', () => {
+                if (this.onToggleTrajectories) {
+                    const visible = this.onToggleTrajectories();
+                    toggleBtn.textContent = visible ? '👁️ Hide Trajectories' : '👁️‍🗨️ Show Trajectories';
+                    toggleBtn.classList.toggle('active', visible);
+                }
+            });
+        }
+    }
+
+    /**
+     * Setup mission click handlers
+     */
+    setupMissionClickHandlers() {
+        // This will be called after missions are rendered
+        const missionElements = document.querySelectorAll('.mission-item');
+        missionElements.forEach(el => {
+            el.style.cursor = 'pointer';
+            el.addEventListener('click', () => {
+                const missionId = parseInt(el.dataset.missionId);
+                if (this.onMissionClick && missionId) {
+                    this.onMissionClick(missionId);
+
+                    // Visual feedback
+                    document.querySelectorAll('.mission-item').forEach(m => {
+                        m.classList.remove('selected');
+                    });
+                    el.classList.add('selected');
+                }
+            });
+        });
     }
 }
