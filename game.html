@@ -36,6 +36,90 @@
             font-size: 12px;
             line-height: 1.6;
         }
+        /* Resource Display */
+        #resources-display {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: rgba(0, 0, 0, 0.7);
+            border: 2px solid #4fd1c7;
+            border-radius: 8px;
+            padding: 15px;
+            min-width: 280px;
+            z-index: 100;
+            pointer-events: none;
+        }
+        #resources-display h3 {
+            color: #4fd1c7;
+            font-size: 16px;
+            margin: 0 0 12px 0;
+            text-align: center;
+        }
+        .resource-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 6px 0;
+            border-bottom: 1px solid rgba(79, 209, 199, 0.2);
+        }
+        .resource-item:last-child {
+            border-bottom: none;
+        }
+        .resource-name {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            color: #aaa;
+            font-size: 13px;
+        }
+        .resource-icon {
+            font-size: 16px;
+        }
+        .resource-value {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
+            gap: 2px;
+        }
+        .resource-amount {
+            color: #fff;
+            font-weight: bold;
+            font-size: 14px;
+        }
+        .resource-rate {
+            color: #4fd1c7;
+            font-size: 11px;
+        }
+        .resource-rate.positive {
+            color: #90EE90;
+        }
+        .resource-rate.negative {
+            color: #FF6B6B;
+        }
+        .resource-change {
+            position: fixed;
+            font-size: 16px;
+            font-weight: bold;
+            pointer-events: none;
+            z-index: 1000;
+            animation: floatUp 1.5s ease-out forwards;
+        }
+        .resource-change.positive {
+            color: #90EE90;
+        }
+        .resource-change.negative {
+            color: #FF6B6B;
+        }
+        @keyframes floatUp {
+            0% {
+                opacity: 1;
+                transform: translateY(0);
+            }
+            100% {
+                opacity: 0;
+                transform: translateY(-40px);
+            }
+        }
         /* Planet Information Panel */
         .planet-panel {
             position: fixed;
@@ -154,6 +238,14 @@
         </div>
     </div>
 
+    <!-- Resources Display -->
+    <div id="resources-display">
+        <h3>📊 Resources</h3>
+        <div id="resources-list">
+            <!-- Resources will be populated dynamically -->
+        </div>
+    </div>
+
     <!-- Planet Information Panel -->
     <div id="planet-info-panel" class="planet-panel hidden">
         <div class="panel-header">
@@ -203,9 +295,11 @@
     <script type="module">
         import { SolarSystemRenderer } from './js/graphics/SolarSystemRenderer.js?v=20250210142500';
         import { UIController } from './js/ui/UIController.js?v=20250210142500';
+        import { ResourceManager } from './js/core/ResourceManager.js?v=20250211';
 
         const renderer = new SolarSystemRenderer('solar-system-canvas');
         const uiController = new UIController();
+        const resourceManager = new ResourceManager({ code: 'USA' });
 
         // Connect renderer to UI controller for planet selection
         renderer.onPlanetClick = (planetInfo) => {
@@ -218,11 +312,19 @@
 
         await renderer.init();
 
+        // Initialize resources
+        resourceManager.initializeResources({
+            budget: 1000000,
+            science: 10000,
+            population: 500000000
+        });
+
         // Game time: 1 game year (365 days) = 24 real hours (86400 seconds)
         const startYear = 2100;
         const startTime = performance.now();
         const yearEl = document.getElementById('game-year');
         const dateEl = document.getElementById('game-date');
+        const resourcesList = document.getElementById('resources-list');
         const SECONDS_PER_GAME_YEAR = 86400; // 24h real = 1 year in game
 
         const MONTHS = ['gen','feb','mar','apr','mag','giu','lug','ago','set','ott','nov','dic'];
@@ -241,10 +343,73 @@
             return `(${MONTHS[month]}-${String(dayOfYear + 1).padStart(2, '0')} ${String(hour).padStart(2, '0')}:00)`;
         }
 
+        // Update resources HUD
+        function updateResourcesHUD() {
+            const formatted = resourceManager.getAllFormatted();
+            const mainResources = ['budget', 'science', 'population', 'energy'];
+
+            resourcesList.innerHTML = mainResources.map(resource => {
+                const data = formatted[resource];
+                if (!data) return '';
+
+                const production = resourceManager.getProduction(resource);
+                const rateClass = production > 0 ? 'positive' : production < 0 ? 'negative' : '';
+                const rateText = production !== 0 ? `+${production.toFixed(0)}/year` : '';
+
+                return `
+                    <div class="resource-item">
+                        <div class="resource-name">
+                            <span class="resource-icon">${data.icon}</span>
+                            <span>${data.name}</span>
+                        </div>
+                        <div class="resource-value">
+                            <span class="resource-amount">${data.value}</span>
+                            ${rateText ? `<span class="resource-rate ${rateClass}">${rateText}</span>` : ''}
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        // Show resource change animation
+        function showResourceChange(resource, change) {
+            const resourceDisplay = document.getElementById('resources-display');
+            const rect = resourceDisplay.getBoundingClientRect();
+
+            const changeEl = document.createElement('div');
+            changeEl.className = `resource-change ${change > 0 ? 'positive' : 'negative'}`;
+            changeEl.textContent = `${change > 0 ? '+' : ''}${Math.floor(change)}`;
+            changeEl.style.left = `${rect.right - 60}px`;
+            changeEl.style.top = `${rect.top + 40}px`;
+
+            document.body.appendChild(changeEl);
+
+            setTimeout(() => changeEl.remove(), 1500);
+        }
+
+        // Register resource change callback
+        resourceManager.onChange((changes) => {
+            for (const [resource, data] of Object.entries(changes)) {
+                if (Math.abs(data.change) > 0) {
+                    showResourceChange(resource, data.change);
+                }
+            }
+            updateResourcesHUD();
+        });
+
+        // Initial HUD update
+        updateResourcesHUD();
+
+        let lastFrameTime = performance.now();
+
         function animate() {
             requestAnimationFrame(animate);
 
-            const elapsedSeconds = (performance.now() - startTime) / 1000;
+            const now = performance.now();
+            const deltaTime = now - lastFrameTime;
+            lastFrameTime = now;
+
+            const elapsedSeconds = (now - startTime) / 1000;
             const gameYear = startYear + elapsedSeconds / SECONDS_PER_GAME_YEAR;
             renderer.setGameYear(gameYear);
 
@@ -252,6 +417,9 @@
             const fraction = gameYear - yearInt;
             yearEl.textContent = yearInt;
             dateEl.textContent = yearFractionToDate(fraction);
+
+            // Update resources
+            resourceManager.update(deltaTime);
 
             renderer.render();
         }

@@ -7,7 +7,7 @@
 export class ResourceManager {
     constructor(nation) {
         this.nation = nation;
-        
+
         // Current resources
         this.resources = {
             budget: 0,
@@ -19,6 +19,21 @@ export class ResourceManager {
             water: 0,
             oxygen: 0
         };
+
+        // Resource metadata (icons, colors, units)
+        this.resourcesInfo = {
+            budget: { name: 'Budget', icon: '💰', unit: 'Credits', color: '#FFD700' },
+            science: { name: 'Science', icon: '🔬', unit: 'Points', color: '#00CED1' },
+            population: { name: 'Population', icon: '👥', unit: 'People', color: '#FF6B6B' },
+            energy: { name: 'Energy', icon: '⚡', unit: 'Units', color: '#FFB84D' },
+            materials: { name: 'Materials', icon: '⚙️', unit: 'Tons', color: '#A8A8A8' },
+            food: { name: 'Food', icon: '🌾', unit: 'Tons', color: '#90EE90' },
+            water: { name: 'Water', icon: '💧', unit: 'Liters', color: '#4FC3F7' },
+            oxygen: { name: 'Oxygen', icon: '🫁', unit: 'Units', color: '#B0E0E6' }
+        };
+
+        // Change callbacks for UI updates
+        this.onChangeCallbacks = [];
         
         // Production rates (per game year, calculated per second in real time)
         this.production = {
@@ -135,19 +150,41 @@ export class ResourceManager {
     
     add(resource, amount) {
         if (this.resources.hasOwnProperty(resource)) {
+            const oldValue = this.resources[resource];
             this.resources[resource] += amount;
             this.resources[resource] = Math.max(0, this.resources[resource]);
+
+            // Notify change
+            this.notifyChanges({
+                [resource]: {
+                    old: oldValue,
+                    new: this.resources[resource],
+                    change: amount
+                }
+            });
         }
     }
-    
+
     spend(costs) {
         // costs = { budget: 1000, science: 50, ... }
+        const changes = {};
+
         for (const resource in costs) {
             if (this.resources.hasOwnProperty(resource)) {
+                const oldValue = this.resources[resource];
                 this.resources[resource] -= costs[resource];
                 this.resources[resource] = Math.max(0, this.resources[resource]);
+
+                changes[resource] = {
+                    old: oldValue,
+                    new: this.resources[resource],
+                    change: -costs[resource]
+                };
             }
         }
+
+        // Notify all changes
+        this.notifyChanges(changes);
     }
     
     canAfford(costs) {
@@ -208,10 +245,124 @@ export class ResourceManager {
     getStatus(resource) {
         const value = this.resources[resource];
         const production = this.getProduction(resource);
-        
+
         // Simple heuristic based on production rate
         if (value < production * 10) return 'low';
         if (value < production * 100) return 'medium';
         return 'high';
+    }
+
+    /**
+     * Format with icon and color
+     */
+    formatWithIcon(resource) {
+        const info = this.resourcesInfo[resource];
+        const value = this.format(resource);
+
+        if (!info) return value;
+
+        return {
+            icon: info.icon,
+            value: value,
+            name: info.name,
+            color: info.color,
+            unit: info.unit
+        };
+    }
+
+    /**
+     * Get all resources formatted with metadata
+     */
+    getAllFormatted() {
+        const formatted = {};
+
+        for (const resource of Object.keys(this.resources)) {
+            formatted[resource] = this.formatWithIcon(resource);
+        }
+
+        return formatted;
+    }
+
+    /**
+     * Register callback for resource changes
+     */
+    onChange(callback) {
+        this.onChangeCallbacks.push(callback);
+    }
+
+    /**
+     * Notify all registered callbacks of changes
+     */
+    notifyChanges(changes) {
+        for (const callback of this.onChangeCallbacks) {
+            callback(changes);
+        }
+    }
+
+    /**
+     * Sync resources with server
+     */
+    async syncWithServer(sessionId) {
+        try {
+            const response = await fetch(`/php/api/resources.php?session_id=${sessionId}`);
+            const data = await response.json();
+
+            if (data.success) {
+                const serverResources = {};
+
+                for (const [key, info] of Object.entries(data.data.resources)) {
+                    serverResources[key] = info.value;
+                }
+
+                this.resources = { ...this.resources, ...serverResources };
+
+                if (data.data.production_rates) {
+                    const rates = data.data.production_rates;
+                    this.production.budget = rates.budget || this.production.budget;
+                    this.production.science = rates.science_points || this.production.science;
+                    this.production.population = rates.population || this.production.population;
+                    this.production.energy = rates.energy || this.production.energy;
+                }
+
+                console.log('✅ Resources synced with server');
+                return true;
+            }
+        } catch (error) {
+            console.error('❌ Resource sync failed:', error);
+        }
+
+        return false;
+    }
+
+    /**
+     * Get missing resources for costs
+     */
+    getMissingResources(costs) {
+        const missing = {};
+
+        for (const resource in costs) {
+            const current = this.resources[resource] || 0;
+            if (current < costs[resource]) {
+                missing[resource] = costs[resource] - current;
+            }
+        }
+
+        return missing;
+    }
+
+    /**
+     * Consume resources (alias for spend with return value)
+     */
+    consume(costs) {
+        if (!this.canAfford(costs)) {
+            return {
+                success: false,
+                error: 'Insufficient resources',
+                missing: this.getMissingResources(costs)
+            };
+        }
+
+        this.spend(costs);
+        return { success: true, consumed: costs };
     }
 }
