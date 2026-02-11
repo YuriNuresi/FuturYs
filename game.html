@@ -310,11 +310,15 @@
         import { UIController } from './js/ui/UIController.js?v=20250210142500';
         import { ResourceManager } from './js/core/ResourceManager.js?v=20250211';
         import { MissionManager } from './js/core/MissionManager.js?v=20250211';
+        import { SaveManager } from './js/core/SaveManager.js?v=20250211';
+        import { TimeManager } from './js/core/TimeManager.js?v=20250211';
 
         const renderer = new SolarSystemRenderer('solar-system-canvas');
         const uiController = new UIController();
         const resourceManager = new ResourceManager({ code: 'USA' });
         const missionManager = new MissionManager();
+        const saveManager = new SaveManager();
+        const timeManager = new TimeManager();
 
         let selectedPlanet = null;
         let missionTrajectories = [];
@@ -379,11 +383,23 @@
 
         await renderer.init();
 
+        // Initialize time manager
+        timeManager.init(2100, 2100);
+
         // Initialize resources
         resourceManager.initializeResources({
             budget: 1000000,
             science: 10000,
             population: 500000000
+        });
+
+        // Initialize save manager (session ID 1 for now)
+        saveManager.init(1);
+        saveManager.startAutoSave();
+
+        // Save notification
+        saveManager.onSave((data) => {
+            console.log('💾 Game saved at', data.saved_at);
         });
 
         // Game time: 1 game year (365 days) = 24 real hours (86400 seconds)
