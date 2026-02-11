@@ -939,7 +939,7 @@
             "id": "card_403",
             "title": "Create mission launch sequence",
             "description": "Animazione/sequenza lancio missione",
-            "column_id": "col_1",
+            "column_id": "col_3",
             "swimlane_id": "lane_5",
             "labels": ["lbl_2"],
             "priority": "medium",
