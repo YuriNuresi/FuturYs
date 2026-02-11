@@ -655,6 +655,7 @@
         import { SaveManager } from './js/core/SaveManager.js?v=20250211';
         import { TimeManager } from './js/core/TimeManager.js?v=20250211';
         import { NotificationManager } from './js/ui/NotificationManager.js?v=20250211';
+        import { TutorialManager } from './js/ui/TutorialManager.js?v=20250211';
 
         const renderer = new SolarSystemRenderer('solar-system-canvas');
         const uiController = new UIController();
@@ -664,6 +665,7 @@
         const buildingManager = new BuildingManager(resourceManager, timeManager);
         const saveManager = new SaveManager();
         const notificationManager = new NotificationManager();
+        const tutorialManager = new TutorialManager();
 
         let selectedPlanet = null;
         let trajectoryRenderer = null; // Will be initialized after renderer is ready
@@ -686,6 +688,9 @@
                 }
 
                 notificationManager.info('Navigation', `Switched to ${btn.dataset.view}`, 2000);
+
+                // Tutorial event (card_311)
+                tutorialManager.onEvent('nav-click', view);
             });
         });
 
@@ -695,6 +700,9 @@
                 selectedPlanet = planetInfo;
                 uiController.showPlanetInfo(planetInfo);
                 updateMissionCostDisplay(planetInfo);
+
+                // Tutorial event (card_311)
+                tutorialManager.onEvent('planet-click', planetInfo.name);
             } else {
                 selectedPlanet = null;
                 uiController.hidePlanetInfo();
@@ -809,11 +817,28 @@
                         `${mission.name} is underway! ETA: ${eta}`, 5000);
 
                     console.log(`🚀 Mission to ${destination} launched. Arrival in ${eta}`);
+
+                    // Tutorial event (card_311)
+                    tutorialManager.onEvent('mission-launch', destination);
                 }
             });
         });
 
         await renderer.init();
+
+        // Initialize and start tutorial (card_310, card_311)
+        tutorialManager.init();
+        setTimeout(() => {
+            const started = tutorialManager.start();
+            if (started) {
+                console.log('📚 Tutorial started for new player');
+            }
+        }, 1000); // Delay to let everything load
+
+        tutorialManager.onComplete = () => {
+            notificationManager.success('Tutorial Complete!',
+                'You are ready to save humanity. Good luck, Commander!', 5000);
+        };
 
         // Initialize trajectory renderer after scene is ready
         const planetsMap = new Map();
