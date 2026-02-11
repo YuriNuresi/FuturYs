@@ -935,8 +935,22 @@ export class SolarSystemRenderer {
         this._selectionRing = null;
         this._frameCount = 0;
 
+        // Camera animation state
+        this._cameraAnimation = {
+            active: false,
+            startPosition: new THREE.Vector3(),
+            startTarget: new THREE.Vector3(),
+            targetPosition: new THREE.Vector3(),
+            targetLookAt: new THREE.Vector3(),
+            progress: 0,
+            duration: 1.5 // seconds
+        };
+
         // Game time — updated externally by TimeManager
         this.gameYear = 2100;
+
+        // Frame timing for smooth animations
+        this._lastFrameTime = performance.now();
 
         this._boundResize = this._onWindowResize.bind(this);
         this._boundPointerDown = this._onPointerDown.bind(this);
@@ -1343,6 +1357,8 @@ export class SolarSystemRenderer {
     _onPointerDown(event) {
         if (event.button !== 0) return; // left click only
         this._pointerDown = { x: event.clientX, y: event.clientY };
+        // Stop camera animation if user starts interacting
+        this._cameraAnimation.active = false;
     }
 
     _onPointerUp(event) {
@@ -1391,6 +1407,9 @@ export class SolarSystemRenderer {
         this._selectionRing.scale.set(ringScale, ringScale, ringScale);
         this._selectionRing.visible = true;
 
+        // Animate camera to planet
+        this._animateCameraToPlanet(planet);
+
         // Get full planet info and pass to callback
         if (this.onPlanetClick) {
             const planetInfo = this._getPlanetInfo(name, planet);
@@ -1427,6 +1446,86 @@ export class SolarSystemRenderer {
         this.renderer.setSize(width, height);
     }
 
+    // --- Camera Animation ---
+
+    /**
+     * Animate camera to focus on a planet with smooth transition
+     * @param {object} planet - planet data object
+     */
+    _animateCameraToPlanet(planet) {
+        // Calculate optimal camera position (offset from planet)
+        const planetPos = planet.group.position;
+        const radius = planet.mesh.geometry.parameters.radius;
+
+        // Camera offset: position camera at a nice viewing distance
+        const distance = radius * 8 + 20; // Adaptive distance based on planet size
+
+        // Direction from sun to planet (normalized)
+        const dirX = planetPos.x || 0.01;
+        const dirY = planetPos.y || 0.01;
+        const dirZ = planetPos.z || 0.01;
+        const len = Math.sqrt(dirX * dirX + dirY * dirY + dirZ * dirZ);
+
+        // Position camera offset from planet, slightly above and to the side
+        const offsetX = (dirX / len) * distance * 0.3;
+        const offsetY = distance * 0.5 + radius * 3;
+        const offsetZ = (dirZ / len) * distance * 0.3;
+
+        // Store start and target states
+        this._cameraAnimation.startPosition.copy(this.camera.position);
+        this._cameraAnimation.startTarget.copy(this.controls.target);
+
+        this._cameraAnimation.targetPosition.set(
+            planetPos.x + offsetX,
+            planetPos.y + offsetY,
+            planetPos.z + offsetZ
+        );
+        this._cameraAnimation.targetLookAt.copy(planetPos);
+
+        // Start animation
+        this._cameraAnimation.progress = 0;
+        this._cameraAnimation.active = true;
+    }
+
+    /**
+     * Update camera animation (called every frame)
+     * @param {number} deltaTime - time since last frame in seconds
+     */
+    _updateCameraAnimation(deltaTime) {
+        if (!this._cameraAnimation.active) return;
+
+        const anim = this._cameraAnimation;
+        anim.progress += deltaTime / anim.duration;
+
+        if (anim.progress >= 1) {
+            // Animation complete
+            anim.progress = 1;
+            anim.active = false;
+        }
+
+        // Ease-in-out cubic interpolation for smooth motion
+        const t = anim.progress;
+        const eased = t < 0.5
+            ? 4 * t * t * t
+            : 1 - Math.pow(-2 * t + 2, 3) / 2;
+
+        // Interpolate camera position
+        this.camera.position.lerpVectors(
+            anim.startPosition,
+            anim.targetPosition,
+            eased
+        );
+
+        // Interpolate controls target
+        this.controls.target.lerpVectors(
+            anim.startTarget,
+            anim.targetLookAt,
+            eased
+        );
+
+        this.controls.update();
+    }
+
     // --- Public API ---
 
     /**
@@ -1439,6 +1538,14 @@ export class SolarSystemRenderer {
 
     render() {
         if (!this.renderer) return;
+
+        // Calculate delta time for smooth animations
+        const now = performance.now();
+        const deltaTime = (now - this._lastFrameTime) / 1000; // Convert to seconds
+        this._lastFrameTime = now;
+
+        // Update camera animation if active
+        this._updateCameraAnimation(deltaTime);
 
         this.controls?.update();
 
