@@ -47,6 +47,21 @@ CREATE TABLE time_tracker (
     FOREIGN KEY (session_id) REFERENCES game_sessions(id)
 );
 
+CREATE TABLE scheduled_events (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    session_id INTEGER NOT NULL,
+    trigger_year REAL NOT NULL, -- Anno di gioco in cui triggerare
+    event_type VARCHAR(50) NOT NULL, -- 'TUTORIAL', 'TECH', 'MISSION', 'RANDOM', 'RESOURCE'
+    event_data TEXT NOT NULL, -- JSON con dati evento
+    is_triggered BOOLEAN DEFAULT 0,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    triggered_at DATETIME,
+    FOREIGN KEY (session_id) REFERENCES game_sessions(id)
+);
+
+CREATE INDEX idx_scheduled_events_session ON scheduled_events(session_id, is_triggered);
+CREATE INDEX idx_scheduled_events_trigger ON scheduled_events(trigger_year, is_triggered);
+
 -- ===========================
 -- NATIONS & CIVILIZATIONS
 -- ===========================
