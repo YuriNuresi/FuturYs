@@ -489,16 +489,6 @@ const CLICK_THRESHOLD = 5;
 // Procedural Texture Generation (Canvas2D)
 // ============================================================
 
-/** Seeded pseudo-random (simple mulberry32) for reproducible textures */
-function seededRandom(seed) {
-    let t = seed + 0x6D2B79F5;
-    return function () {
-        t = Math.imul(t ^ (t >>> 15), t | 1);
-        t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
-        return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-    };
-}
-
 /** Mix two CSS-style [r,g,b] colours by factor t (0..1) */
 function mixColor(c1, c2, t) {
     return [
