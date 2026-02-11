@@ -1047,7 +1047,7 @@
             "id": "card_412",
             "title": "Balance building costs/benefits",
             "description": "Bilanciamento costi e benefici edifici",
-            "column_id": "col_1",
+            "column_id": "col_3",
             "swimlane_id": "lane_5",
             "labels": ["lbl_3"],
             "priority": "medium",
