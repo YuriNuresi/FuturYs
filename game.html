@@ -120,6 +120,117 @@
                 transform: translateY(-40px);
             }
         }
+        /* Navigation Menu */
+        #nav-menu {
+            position: fixed;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 10px;
+            background: rgba(0,0,0,0.8);
+            border: 2px solid #4fd1c7;
+            border-radius: 8px;
+            padding: 10px;
+            z-index: 150;
+        }
+        .nav-btn {
+            background: rgba(79,209,199,0.2);
+            border: 1px solid #4fd1c7;
+            color: #4fd1c7;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 13px;
+            transition: all 0.2s;
+        }
+        .nav-btn:hover {
+            background: rgba(79,209,199,0.4);
+            transform: translateY(-2px);
+        }
+        .nav-btn.active {
+            background: #4fd1c7;
+            color: #000;
+        }
+        /* Notification System */
+        #notifications-container {
+            position: fixed;
+            top: 80px;
+            right: 20px;
+            width: 320px;
+            z-index: 200;
+            pointer-events: none;
+        }
+        .notification {
+            background: rgba(0,0,0,0.9);
+            border-left: 4px solid #4fd1c7;
+            border-radius: 4px;
+            padding: 12px 16px;
+            margin-bottom: 10px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+            animation: slideIn 0.3s ease-out;
+            pointer-events: all;
+        }
+        .notification.success { border-left-color: #90EE90; }
+        .notification.warning { border-left-color: #FFB84D; }
+        .notification.error { border-left-color: #FF6B6B; }
+        .notification-title {
+            color: #4fd1c7;
+            font-weight: bold;
+            font-size: 13px;
+            margin-bottom: 4px;
+        }
+        .notification-message {
+            color: #aaa;
+            font-size: 12px;
+        }
+        @keyframes slideIn {
+            from {
+                transform: translateX(400px);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+        /* Responsive Design */
+        @media (max-width: 768px) {
+            #resources-display {
+                top: auto;
+                bottom: 220px;
+                right: 10px;
+                min-width: 240px;
+                font-size: 12px;
+            }
+            #missions-panel {
+                bottom: 10px;
+                right: 10px;
+                min-width: 240px;
+                max-height: 150px;
+            }
+            #nav-menu {
+                flex-direction: column;
+                gap: 5px;
+                padding: 8px;
+                top: 10px;
+            }
+            .nav-btn {
+                padding: 6px 12px;
+                font-size: 11px;
+            }
+        }
+        @media (max-width: 480px) {
+            #hud {
+                font-size: 12px;
+            }
+            #hud .year {
+                font-size: 18px;
+            }
+            #resources-display {
+                min-width: 200px;
+            }
+        }
         /* Planet Information Panel */
         .planet-panel {
             position: fixed;
@@ -227,6 +338,17 @@
 <body>
     <canvas id="solar-system-canvas"></canvas>
 
+    <!-- Navigation Menu -->
+    <div id="nav-menu">
+        <button class="nav-btn active" data-view="solar-system">🌌 Solar System</button>
+        <button class="nav-btn" data-view="missions">🚀 Missions</button>
+        <button class="nav-btn" data-view="research">🔬 Research</button>
+        <button class="nav-btn" data-view="economy">💰 Economy</button>
+    </div>
+
+    <!-- Notifications Container -->
+    <div id="notifications-container"></div>
+
     <div id="hud">
         <h2>FuturY</h2>
         <div class="year">Anno <span id="game-year">2100</span> <span id="game-date" style="color: #4fd1c7; font-size: 16px;">(gen-01 0:00)</span></div>
@@ -312,6 +434,7 @@
         import { MissionManager } from './js/core/MissionManager.js?v=20250211';
         import { SaveManager } from './js/core/SaveManager.js?v=20250211';
         import { TimeManager } from './js/core/TimeManager.js?v=20250211';
+        import { NotificationManager } from './js/ui/NotificationManager.js?v=20250211';
 
         const renderer = new SolarSystemRenderer('solar-system-canvas');
         const uiController = new UIController();
@@ -319,9 +442,19 @@
         const missionManager = new MissionManager();
         const saveManager = new SaveManager();
         const timeManager = new TimeManager();
+        const notificationManager = new NotificationManager();
 
         let selectedPlanet = null;
         let missionTrajectories = [];
+
+        // Navigation menu
+        document.querySelectorAll('.nav-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                notificationManager.info('Navigation', `Switched to ${btn.dataset.view}`, 2000);
+            });
+        });
 
         // Connect renderer to UI controller for planet selection
         renderer.onPlanetClick = (planetInfo) => {
@@ -356,7 +489,7 @@
             const costs = missionManager.getMissionCost(selectedPlanet.name);
 
             if (!resourceManager.canAfford(costs)) {
-                alert('Insufficient resources!');
+                notificationManager.error('Mission Failed', 'Insufficient resources!');
                 return;
             }
 
@@ -377,7 +510,7 @@
 
                 missionManager.addMission(mission);
                 updateMissionsDisplay();
-                alert(`🚀 Mission launched to ${selectedPlanet.name}!`);
+                notificationManager.success('Mission Launched', `Mission to ${selectedPlanet.name} is underway!`);
             }
         });
 
@@ -510,7 +643,7 @@
 
         // Mission completion notification
         missionManager.onMissionComplete((mission) => {
-            alert(`🎉 Mission to ${mission.destination} completed!`);
+            notificationManager.success('Mission Complete!', `Mission to ${mission.destination} has arrived successfully!`, 8000);
             updateMissionsDisplay();
         });
 
