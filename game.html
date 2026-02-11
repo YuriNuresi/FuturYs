@@ -36,6 +36,201 @@
             font-size: 12px;
             line-height: 1.6;
         }
+        /* Resource Display */
+        #resources-display {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: rgba(0, 0, 0, 0.7);
+            border: 2px solid #4fd1c7;
+            border-radius: 8px;
+            padding: 15px;
+            min-width: 280px;
+            z-index: 100;
+            pointer-events: none;
+        }
+        #resources-display h3 {
+            color: #4fd1c7;
+            font-size: 16px;
+            margin: 0 0 12px 0;
+            text-align: center;
+        }
+        .resource-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 6px 0;
+            border-bottom: 1px solid rgba(79, 209, 199, 0.2);
+        }
+        .resource-item:last-child {
+            border-bottom: none;
+        }
+        .resource-name {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            color: #aaa;
+            font-size: 13px;
+        }
+        .resource-icon {
+            font-size: 16px;
+        }
+        .resource-value {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
+            gap: 2px;
+        }
+        .resource-amount {
+            color: #fff;
+            font-weight: bold;
+            font-size: 14px;
+        }
+        .resource-rate {
+            color: #4fd1c7;
+            font-size: 11px;
+        }
+        .resource-rate.positive {
+            color: #90EE90;
+        }
+        .resource-rate.negative {
+            color: #FF6B6B;
+        }
+        .resource-change {
+            position: fixed;
+            font-size: 16px;
+            font-weight: bold;
+            pointer-events: none;
+            z-index: 1000;
+            animation: floatUp 1.5s ease-out forwards;
+        }
+        .resource-change.positive {
+            color: #90EE90;
+        }
+        .resource-change.negative {
+            color: #FF6B6B;
+        }
+        @keyframes floatUp {
+            0% {
+                opacity: 1;
+                transform: translateY(0);
+            }
+            100% {
+                opacity: 0;
+                transform: translateY(-40px);
+            }
+        }
+        /* Navigation Menu */
+        #nav-menu {
+            position: fixed;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 10px;
+            background: rgba(0,0,0,0.8);
+            border: 2px solid #4fd1c7;
+            border-radius: 8px;
+            padding: 10px;
+            z-index: 150;
+        }
+        .nav-btn {
+            background: rgba(79,209,199,0.2);
+            border: 1px solid #4fd1c7;
+            color: #4fd1c7;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 13px;
+            transition: all 0.2s;
+        }
+        .nav-btn:hover {
+            background: rgba(79,209,199,0.4);
+            transform: translateY(-2px);
+        }
+        .nav-btn.active {
+            background: #4fd1c7;
+            color: #000;
+        }
+        /* Notification System */
+        #notifications-container {
+            position: fixed;
+            top: 80px;
+            right: 20px;
+            width: 320px;
+            z-index: 200;
+            pointer-events: none;
+        }
+        .notification {
+            background: rgba(0,0,0,0.9);
+            border-left: 4px solid #4fd1c7;
+            border-radius: 4px;
+            padding: 12px 16px;
+            margin-bottom: 10px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+            animation: slideIn 0.3s ease-out;
+            pointer-events: all;
+        }
+        .notification.success { border-left-color: #90EE90; }
+        .notification.warning { border-left-color: #FFB84D; }
+        .notification.error { border-left-color: #FF6B6B; }
+        .notification-title {
+            color: #4fd1c7;
+            font-weight: bold;
+            font-size: 13px;
+            margin-bottom: 4px;
+        }
+        .notification-message {
+            color: #aaa;
+            font-size: 12px;
+        }
+        @keyframes slideIn {
+            from {
+                transform: translateX(400px);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+        /* Responsive Design */
+        @media (max-width: 768px) {
+            #resources-display {
+                top: auto;
+                bottom: 220px;
+                right: 10px;
+                min-width: 240px;
+                font-size: 12px;
+            }
+            #missions-panel {
+                bottom: 10px;
+                right: 10px;
+                min-width: 240px;
+                max-height: 150px;
+            }
+            #nav-menu {
+                flex-direction: column;
+                gap: 5px;
+                padding: 8px;
+                top: 10px;
+            }
+            .nav-btn {
+                padding: 6px 12px;
+                font-size: 11px;
+            }
+        }
+        @media (max-width: 480px) {
+            #hud {
+                font-size: 12px;
+            }
+            #hud .year {
+                font-size: 18px;
+            }
+            #resources-display {
+                min-width: 200px;
+            }
+        }
         /* Planet Information Panel */
         .planet-panel {
             position: fixed;
@@ -143,6 +338,17 @@
 <body>
     <canvas id="solar-system-canvas"></canvas>
 
+    <!-- Navigation Menu -->
+    <div id="nav-menu">
+        <button class="nav-btn active" data-view="solar-system">🌌 Solar System</button>
+        <button class="nav-btn" data-view="missions">🚀 Missions</button>
+        <button class="nav-btn" data-view="research">🔬 Research</button>
+        <button class="nav-btn" data-view="economy">💰 Economy</button>
+    </div>
+
+    <!-- Notifications Container -->
+    <div id="notifications-container"></div>
+
     <div id="hud">
         <h2>FuturY</h2>
         <div class="year">Anno <span id="game-year">2100</span> <span id="game-date" style="color: #4fd1c7; font-size: 16px;">(gen-01 0:00)</span></div>
@@ -151,6 +357,14 @@
             Scroll: zoom<br>
             Click destro + trascina: pan<br>
             Click su pianeta: info
+        </div>
+    </div>
+
+    <!-- Resources Display -->
+    <div id="resources-display">
+        <h3>📊 Resources</h3>
+        <div id="resources-list">
+            <!-- Resources will be populated dynamically -->
         </div>
     </div>
 
@@ -196,33 +410,137 @@
                     <span class="label">Travel Time:</span>
                     <span id="planet-travel-time" class="value"></span>
                 </div>
+                <div class="info-item">
+                    <span class="label">Mission Cost:</span>
+                    <span id="planet-mission-cost" class="value"></span>
+                </div>
             </div>
+            <button id="launch-mission-btn" class="launch-btn" style="width: 100%; margin-top: 15px; padding: 12px; background: #4fd1c7; border: none; border-radius: 4px; color: #000; font-weight: bold; cursor: pointer;">
+                🚀 Launch Mission
+            </button>
         </div>
+    </div>
+
+    <!-- Active Missions Panel -->
+    <div id="missions-panel" style="position: fixed; bottom: 20px; right: 20px; background: rgba(0,0,0,0.7); border: 2px solid #4fd1c7; border-radius: 8px; padding: 15px; min-width: 300px; max-height: 200px; overflow-y: auto; z-index: 100;">
+        <h3 style="color: #4fd1c7; font-size: 14px; margin: 0 0 10px 0;">🚀 Active Missions</h3>
+        <div id="missions-list"></div>
     </div>
 
     <script type="module">
         import { SolarSystemRenderer } from './js/graphics/SolarSystemRenderer.js?v=20250210142500';
         import { UIController } from './js/ui/UIController.js?v=20250210142500';
+        import { ResourceManager } from './js/core/ResourceManager.js?v=20250211';
+        import { MissionManager } from './js/core/MissionManager.js?v=20250211';
+        import { SaveManager } from './js/core/SaveManager.js?v=20250211';
+        import { TimeManager } from './js/core/TimeManager.js?v=20250211';
+        import { NotificationManager } from './js/ui/NotificationManager.js?v=20250211';
 
         const renderer = new SolarSystemRenderer('solar-system-canvas');
         const uiController = new UIController();
+        const resourceManager = new ResourceManager({ code: 'USA' });
+        const missionManager = new MissionManager();
+        const saveManager = new SaveManager();
+        const timeManager = new TimeManager();
+        const notificationManager = new NotificationManager();
+
+        let selectedPlanet = null;
+        let missionTrajectories = [];
+
+        // Navigation menu
+        document.querySelectorAll('.nav-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                notificationManager.info('Navigation', `Switched to ${btn.dataset.view}`, 2000);
+            });
+        });
 
         // Connect renderer to UI controller for planet selection
         renderer.onPlanetClick = (planetInfo) => {
             if (planetInfo) {
+                selectedPlanet = planetInfo;
                 uiController.showPlanetInfo(planetInfo);
+                updateMissionCostDisplay(planetInfo);
             } else {
+                selectedPlanet = null;
                 uiController.hidePlanetInfo();
             }
         };
 
+        // Update mission cost display
+        function updateMissionCostDisplay(planetInfo) {
+            const costs = missionManager.getMissionCost(planetInfo.name);
+            const costEl = document.getElementById('planet-mission-cost');
+            if (costEl && costs) {
+                costEl.innerHTML = `
+                    💰 ${(costs.budget / 1000).toFixed(0)}K
+                    🔬 ${costs.science}
+                    ⚡ ${costs.energy}
+                    ⚙️ ${costs.materials}
+                `;
+            }
+        }
+
+        // Launch mission button
+        document.getElementById('launch-mission-btn').addEventListener('click', async () => {
+            if (!selectedPlanet) return;
+
+            const costs = missionManager.getMissionCost(selectedPlanet.name);
+
+            if (!resourceManager.canAfford(costs)) {
+                notificationManager.error('Mission Failed', 'Insufficient resources!');
+                return;
+            }
+
+            const result = resourceManager.consume(costs);
+
+            if (result.success) {
+                const mission = {
+                    id: Date.now(),
+                    name: `Mission to ${selectedPlanet.name}`,
+                    origin: 'Earth',
+                    destination: selectedPlanet.name,
+                    status: 'TRAVELING',
+                    launch_year: currentGameYear,
+                    arrival_year: currentGameYear + missionManager.getTravelTime('Earth', selectedPlanet.name),
+                    travel_time_years: missionManager.getTravelTime('Earth', selectedPlanet.name),
+                    progress: 0
+                };
+
+                missionManager.addMission(mission);
+                updateMissionsDisplay();
+                notificationManager.success('Mission Launched', `Mission to ${selectedPlanet.name} is underway!`);
+            }
+        });
+
         await renderer.init();
+
+        // Initialize time manager
+        timeManager.init(2100, 2100);
+
+        // Initialize resources
+        resourceManager.initializeResources({
+            budget: 1000000,
+            science: 10000,
+            population: 500000000
+        });
+
+        // Initialize save manager (session ID 1 for now)
+        saveManager.init(1);
+        saveManager.startAutoSave();
+
+        // Save notification
+        saveManager.onSave((data) => {
+            console.log('💾 Game saved at', data.saved_at);
+        });
 
         // Game time: 1 game year (365 days) = 24 real hours (86400 seconds)
         const startYear = 2100;
         const startTime = performance.now();
         const yearEl = document.getElementById('game-year');
         const dateEl = document.getElementById('game-date');
+        const resourcesList = document.getElementById('resources-list');
         const SECONDS_PER_GAME_YEAR = 86400; // 24h real = 1 year in game
 
         const MONTHS = ['gen','feb','mar','apr','mag','giu','lug','ago','set','ott','nov','dic'];
@@ -241,17 +559,125 @@
             return `(${MONTHS[month]}-${String(dayOfYear + 1).padStart(2, '0')} ${String(hour).padStart(2, '0')}:00)`;
         }
 
+        // Update resources HUD
+        function updateResourcesHUD() {
+            const formatted = resourceManager.getAllFormatted();
+            const mainResources = ['budget', 'science', 'population', 'energy'];
+
+            resourcesList.innerHTML = mainResources.map(resource => {
+                const data = formatted[resource];
+                if (!data) return '';
+
+                const production = resourceManager.getProduction(resource);
+                const rateClass = production > 0 ? 'positive' : production < 0 ? 'negative' : '';
+                const rateText = production !== 0 ? `+${production.toFixed(0)}/year` : '';
+
+                return `
+                    <div class="resource-item">
+                        <div class="resource-name">
+                            <span class="resource-icon">${data.icon}</span>
+                            <span>${data.name}</span>
+                        </div>
+                        <div class="resource-value">
+                            <span class="resource-amount">${data.value}</span>
+                            ${rateText ? `<span class="resource-rate ${rateClass}">${rateText}</span>` : ''}
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        // Show resource change animation
+        function showResourceChange(resource, change) {
+            const resourceDisplay = document.getElementById('resources-display');
+            const rect = resourceDisplay.getBoundingClientRect();
+
+            const changeEl = document.createElement('div');
+            changeEl.className = `resource-change ${change > 0 ? 'positive' : 'negative'}`;
+            changeEl.textContent = `${change > 0 ? '+' : ''}${Math.floor(change)}`;
+            changeEl.style.left = `${rect.right - 60}px`;
+            changeEl.style.top = `${rect.top + 40}px`;
+
+            document.body.appendChild(changeEl);
+
+            setTimeout(() => changeEl.remove(), 1500);
+        }
+
+        // Register resource change callback
+        resourceManager.onChange((changes) => {
+            for (const [resource, data] of Object.entries(changes)) {
+                if (Math.abs(data.change) > 0) {
+                    showResourceChange(resource, data.change);
+                }
+            }
+            updateResourcesHUD();
+        });
+
+        // Initial HUD update
+        updateResourcesHUD();
+
+        // Update missions display
+        function updateMissionsDisplay() {
+            const missionsListEl = document.getElementById('missions-list');
+            const activeMissions = missionManager.getActiveMissions();
+
+            if (activeMissions.length === 0) {
+                missionsListEl.innerHTML = '<div style="color: #888; font-size: 12px;">No active missions</div>';
+                return;
+            }
+
+            missionsListEl.innerHTML = activeMissions.map(m => {
+                const progress = (m.progress * 100).toFixed(0);
+                return `
+                    <div style="margin-bottom: 8px; padding: 8px; background: rgba(79,209,199,0.1); border-radius: 4px;">
+                        <div style="font-size: 12px; color: #fff; margin-bottom: 4px;">
+                            ${m.destination} - ${progress}%
+                        </div>
+                        <div style="width: 100%; height: 4px; background: rgba(0,0,0,0.5); border-radius: 2px;">
+                            <div style="width: ${progress}%; height: 100%; background: #4fd1c7; border-radius: 2px;"></div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        // Mission completion notification
+        missionManager.onMissionComplete((mission) => {
+            notificationManager.success('Mission Complete!', `Mission to ${mission.destination} has arrived successfully!`, 8000);
+            updateMissionsDisplay();
+        });
+
+        let currentGameYear = 2100;
+
+        let lastFrameTime = performance.now();
+        let lastMissionUpdate = 0;
+
         function animate() {
             requestAnimationFrame(animate);
 
-            const elapsedSeconds = (performance.now() - startTime) / 1000;
+            const now = performance.now();
+            const deltaTime = now - lastFrameTime;
+            lastFrameTime = now;
+
+            const elapsedSeconds = (now - startTime) / 1000;
             const gameYear = startYear + elapsedSeconds / SECONDS_PER_GAME_YEAR;
+            currentGameYear = gameYear;
             renderer.setGameYear(gameYear);
 
             const yearInt = Math.floor(gameYear);
             const fraction = gameYear - yearInt;
             yearEl.textContent = yearInt;
             dateEl.textContent = yearFractionToDate(fraction);
+
+            // Update resources
+            resourceManager.update(deltaTime);
+
+            // Update missions (less frequently)
+            if (now - lastMissionUpdate > 1000) {
+                missionManager.update(gameYear);
+                updateMissionsDisplay();
+                lastMissionUpdate = now;
+            }
 
             renderer.render();
         }
