@@ -848,12 +848,59 @@
         // Initialize time manager
         timeManager.init(2100, 2100);
 
-        // Initialize resources
-        resourceManager.initializeResources({
-            budget: 1000000,
-            science: 10000,
-            population: 500000000
-        });
+        // Get selected nation from URL params or sessionStorage (card_308)
+        const urlParams = new URLSearchParams(window.location.search);
+        const selectedNationCode = urlParams.get('nation') || sessionStorage.getItem('selectedNation') || 'USA';
+
+        console.log(`🌍 Selected Nation: ${selectedNationCode}`);
+
+        // Load nation data and initialize resources with bonuses
+        let selectedNation = null;
+
+        async function loadNationData(nationCode) {
+            try {
+                const response = await fetch(`/php/api/nations.php?code=${nationCode}`);
+                const result = await response.json();
+
+                if (result.success && result.data) {
+                    const nation = result.data;
+                    console.log('📊 Nation loaded:', nation);
+
+                    // Initialize resources with nation-specific values and multipliers
+                    resourceManager.initializeResources({
+                        budget: nation.starting_budget || 1000000,
+                        science: nation.starting_science || 10000,
+                        population: nation.starting_population || 500000000,
+                        budgetMultiplier: nation.budget_multiplier || 1.0,
+                        scienceMultiplier: nation.science_multiplier || 1.0,
+                        populationGrowthRate: nation.population_growth_rate || 0.02
+                    });
+
+                    selectedNation = nation;
+
+                    // Show nation selection notification
+                    notificationManager.info('Nation Selected',
+                        `Playing as ${nation.name}. Budget +${((nation.budget_multiplier - 1) * 100).toFixed(0)}%, Science +${((nation.science_multiplier - 1) * 100).toFixed(0)}%`,
+                        5000);
+
+                    return nation;
+                } else {
+                    throw new Error('Nation not found');
+                }
+            } catch (error) {
+                console.warn('Failed to load nation, using defaults:', error);
+                // Fallback to default values
+                resourceManager.initializeResources({
+                    budget: 1000000,
+                    science: 10000,
+                    population: 500000000
+                });
+                return null;
+            }
+        }
+
+        // Load nation before initializing save manager
+        loadNationData(selectedNationCode);
 
         // Initialize save manager (session ID 1 for now)
         saveManager.init(1);
