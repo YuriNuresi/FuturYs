@@ -627,6 +627,18 @@
             btn.addEventListener('click', () => {
                 document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
                 btn.classList.add('active');
+
+                // Show/hide buildings panel based on view
+                const view = btn.dataset.view;
+                const buildingsPanel = document.getElementById('buildings-panel');
+
+                if (view === 'buildings') {
+                    buildingsPanel.style.display = 'block';
+                    updateBuildingsPanel(); // Refresh panel when opened
+                } else {
+                    buildingsPanel.style.display = 'none';
+                }
+
                 notificationManager.info('Navigation', `Switched to ${btn.dataset.view}`, 2000);
             });
         });
@@ -712,6 +724,13 @@
         uiController.onMissionClick = (missionId) => {
             console.log(`Focusing on mission ${missionId}`);
             trajectoryRenderer.focusOnMission(missionId, renderer.camera, renderer.controls);
+        };
+
+        // Initialize building manager
+        await buildingManager.init();
+        buildingManager.onBuildingComplete = (building) => {
+            notificationManager.success('Building Complete!', `${building.name} on ${building.planet} is now operational!`, 5000);
+            updateBuildingsPanel();
         };
 
         // Initialize time manager
@@ -852,6 +871,128 @@
             setTimeout(() => uiController.setupMissionClickHandlers(), 0);
         }
 
+        // Buildings Panel Management
+        function updateBuildingsPanel() {
+            // Populate available buildings
+            const availableList = document.getElementById('buildings-available-list');
+            const buildings = buildingManager.getAvailableBuildings();
+
+            availableList.innerHTML = buildings.map(building => {
+                const icon = buildingManager.getBuildingIcon(building.building_code);
+                const count = buildingManager.getBuildingCount(building.building_code, 'Earth');
+
+                return `
+                    <div class="building-card">
+                        <div class="building-name">${icon} ${building.name} (${count}/${building.max_per_planet})</div>
+                        <div class="building-desc">${building.description}</div>
+                        <div class="building-costs">
+                            <span class="cost-item">💰 $${(building.budget_cost / 1000).toFixed(0)}K</span>
+                            <span class="cost-item">🔩 ${building.materials_cost}</span>
+                            <span class="cost-item">⚡ ${building.energy_cost}</span>
+                            <span class="cost-item">⏱️ ${building.construction_time_years}y</span>
+                        </div>
+                        <button class="build-btn" data-building-code="${building.building_code}">
+                            🏗️ Build
+                        </button>
+                    </div>
+                `;
+            }).join('');
+
+            // Setup build button handlers
+            document.querySelectorAll('.build-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const buildingCode = btn.dataset.buildingCode;
+                    handleBuildClick(buildingCode);
+                });
+            });
+
+            // Update construction list
+            updateConstructionList();
+        }
+
+        function updateConstructionList() {
+            // In construction
+            const inConstructionEl = document.getElementById('buildings-in-construction');
+            const inConstruction = buildingManager.getBuildingsInConstruction();
+
+            if (inConstruction.length === 0) {
+                inConstructionEl.innerHTML = '<div style="color: #888; font-size: 12px;">No buildings in construction</div>';
+            } else {
+                inConstructionEl.innerHTML = inConstruction.map(b => {
+                    const icon = buildingManager.getBuildingIcon(b.building_code);
+                    const progress = (b.progress * 100).toFixed(0);
+                    const yearsLeft = (b.construction_completion_year - currentGameYear).toFixed(1);
+
+                    return `
+                        <div class="building-card">
+                            <div class="building-name">${icon} ${b.name}</div>
+                            <div style="font-size: 11px; color: #a0aec0; margin-bottom: 5px;">
+                                ⏱️ ${yearsLeft} years remaining
+                            </div>
+                            <div class="building-progress">
+                                <div class="progress-bar">
+                                    <div class="progress-fill" style="width: ${progress}%"></div>
+                                </div>
+                                <div style="font-size: 10px; color: #888; margin-top: 2px;">${progress}%</div>
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+            }
+
+            // Completed buildings
+            const completedEl = document.getElementById('buildings-completed');
+            const completed = buildingManager.getPlanetBuildings('Earth').filter(b => b.status === 'COMPLETED');
+
+            if (completed.length === 0) {
+                completedEl.innerHTML = '<div style="color: #888; font-size: 12px;">No buildings completed</div>';
+            } else {
+                completedEl.innerHTML = completed.map(b => {
+                    const icon = buildingManager.getBuildingIcon(b.building_code);
+                    return `
+                        <div style="padding: 8px; background: rgba(79,209,199,0.1); border-radius: 4px; margin-bottom: 5px;">
+                            <span style="font-size: 12px;">${icon} ${b.name}</span>
+                        </div>
+                    `;
+                }).join('');
+            }
+        }
+
+        function handleBuildClick(buildingCode) {
+            const result = buildingManager.startConstruction(buildingCode, 'Earth');
+
+            if (result.success) {
+                notificationManager.success('Construction Started', `Building ${result.building.name} on Earth`, 3000);
+                updateBuildingsPanel();
+                updateResourcesHUD();
+            } else {
+                notificationManager.error('Cannot Build', result.error, 3000);
+            }
+        }
+
+        // Buildings tab switching
+        document.querySelectorAll('.buildings-tab').forEach(tab => {
+            tab.addEventListener('click', (e) => {
+                const tabId = e.target.id;
+
+                // Update tab styles
+                document.querySelectorAll('.buildings-tab').forEach(t => t.classList.remove('active'));
+                e.target.classList.add('active');
+
+                // Show/hide content
+                if (tabId === 'buildings-tab-build') {
+                    document.getElementById('buildings-build-content').style.display = 'block';
+                    document.getElementById('buildings-list-content').style.display = 'none';
+                } else {
+                    document.getElementById('buildings-build-content').style.display = 'none';
+                    document.getElementById('buildings-list-content').style.display = 'block';
+                }
+            });
+        });
+
+        // Initialize buildings panel
+        updateBuildingsPanel();
+
         // Mission completion notification
         missionManager.onMissionComplete((mission) => {
             notificationManager.success('Mission Complete!', `Mission to ${mission.destination} has arrived successfully!`, 8000);
@@ -883,10 +1024,24 @@
             // Update resources
             resourceManager.update(deltaTime);
 
-            // Update missions (less frequently)
+            // Update missions and buildings (less frequently)
             if (now - lastMissionUpdate > 1000) {
                 missionManager.update(gameYear);
                 updateMissionsDisplay();
+
+                // Update building construction progress
+                const completedBuildings = buildingManager.update(gameYear);
+                if (completedBuildings.length > 0) {
+                    // Apply production bonuses from newly completed buildings
+                    buildingManager.applyProductionBonuses();
+                }
+
+                // Refresh buildings panel if visible
+                const buildingsPanel = document.getElementById('buildings-panel');
+                if (buildingsPanel.style.display !== 'none') {
+                    updateConstructionList(); // Update progress bars in real-time
+                }
+
                 lastMissionUpdate = now;
             }
 

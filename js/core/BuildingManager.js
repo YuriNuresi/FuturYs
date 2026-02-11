@@ -158,10 +158,12 @@ export class BuildingManager {
             (b.status === 'COMPLETED' || b.status === 'BUILDING')
         ).length;
 
-        if (existingCount >= building.max_per_planet) {
+        const maxPerPlanet = building.effects?.max_per_planet || building.max_per_planet || 99;
+
+        if (existingCount >= maxPerPlanet) {
             return {
                 can: false,
-                reason: `Maximum ${building.max_per_planet} ${building.name} per planet`
+                reason: `Maximum ${maxPerPlanet} ${building.name} per planet`
             };
         }
 

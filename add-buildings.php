@@ -43,7 +43,8 @@ try {
             'max_per_planet' => 10,
             'effects_data' => json_encode([
                 'science_production' => 50,  // +50 science/tick
-                'research_speed_bonus' => 0.1 // +10% research speed
+                'research_speed_bonus' => 0.1, // +10% research speed
+                'max_per_planet' => 10
             ]),
             'description' => 'Advanced research facility. Increases science production and speeds up technology research.'
         ],
@@ -59,7 +60,8 @@ try {
             'effects_data' => json_encode([
                 'mission_cost_reduction' => 0.15, // -15% mission costs
                 'mission_capacity' => 2, // +2 simultaneous missions
-                'launch_speed_bonus' => 0.1 // -10% travel time
+                'launch_speed_bonus' => 0.1, // -10% travel time
+                'max_per_planet' => 3
             ]),
             'description' => 'Orbital launch facility. Reduces mission costs, increases mission capacity, and improves travel efficiency.'
         ],
@@ -74,7 +76,8 @@ try {
             'max_per_planet' => 15,
             'effects_data' => json_encode([
                 'energy_production' => 100, // +100 energy/tick
-                'efficiency_bonus' => 0.05 // +5% global energy efficiency
+                'efficiency_bonus' => 0.05, // +5% global energy efficiency
+                'max_per_planet' => 15
             ]),
             'description' => 'Power generation facility. Produces energy for other buildings and operations.'
         ],
@@ -90,7 +93,8 @@ try {
             'effects_data' => json_encode([
                 'food_production' => 50, // +50 food/tick
                 'water_production' => 30, // +30 water/tick
-                'population_growth_bonus' => 0.02 // +2% population growth
+                'population_growth_bonus' => 0.02, // +2% population growth
+                'max_per_planet' => 20
             ]),
             'description' => 'Agricultural complex. Produces food and water to sustain population growth.'
         ]
@@ -116,9 +120,9 @@ try {
         $sql = "INSERT INTO buildings (
             building_code, name, category,
             budget_cost, materials_cost, energy_cost,
-            construction_time_years, max_per_planet,
+            construction_time_years,
             effects_data, description
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)";
 
         $result = $db->insert($sql, [
             $building['building_code'],
@@ -128,7 +132,6 @@ try {
             $building['materials_cost'],
             $building['energy_cost'],
             $building['construction_time_years'],
-            $building['max_per_planet'],
             $building['effects_data'],
             $building['description']
         ]);
