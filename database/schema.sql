@@ -573,11 +573,18 @@ END;
 -- 2. Testare connessione PHP
 -- 3. Creare prime API
 
-INSERT INTO nations (code, name, full_name, starting_budget, starting_science, starting_population, specialization, color_primary) VALUES
-('USA', 'USA', 'United States of America', 2000000000, 25000, 350000000, 'SCIENCE', '#1f4e79'),
-('CHN', 'China', 'People''s Republic of China', 1800000000, 20000, 1400000000, 'EXPANSION', '#de2910'),
-('RUS', 'Russia', 'Russian Federation', 1200000000, 18000, 145000000, 'ENERGY', '#1c3578'), 
-('ESA', 'ESA', 'European Space Agency', 1500000000, 30000, 450000000, 'SCIENCE', '#003399');
+INSERT INTO nations (code, name, full_name, starting_budget, starting_science, starting_population, budget_multiplier, science_multiplier, population_growth_rate, specialization, color_primary, color_secondary, description) VALUES
+-- Tier 1 Nations
+('USA', 'USA', 'United States of America', 2000000000, 25000, 350000000, 1.2, 1.0, 0.01, 'SCIENCE', '#1f4e79', '#c7dcef', 'Economic powerhouse with strong scientific research. Excels at budget efficiency and technological innovation.'),
+('CHN', 'China', 'People''s Republic of China', 1800000000, 20000, 1400000000, 1.0, 1.0, 0.012, 'EXPANSION', '#de2910', '#ffde00', 'Largest population enables massive colonization efforts. Specializes in territorial expansion and population growth.'),
+('RUS', 'Russia', 'Russian Federation', 1200000000, 18000, 145000000, 1.0, 1.1, 0.005, 'ENERGY', '#1c3578', '#ffffff', 'Energy efficiency leader with strong scientific heritage. Advanced propulsion and energy systems.'),
+('ESA', 'ESA', 'European Space Agency', 1500000000, 30000, 450000000, 1.05, 1.05, 0.008, 'SCIENCE', '#003399', '#ffcc00', 'International scientific collaboration at its finest. Balanced approach to space exploration.'),
+('IND', 'India', 'Indian Space Research Organisation', 1600000000, 22000, 1500000000, 0.95, 1.1, 0.015, 'EXPANSION', '#FF9933', '#138808', 'Emerging superpower with massive population and cost-efficient tech. Excels at habitat systems for large-scale colonization.'),
+
+-- Tier 2 Nations
+('JPN', 'Japan', 'Japan Aerospace Exploration Agency', 1400000000, 24000, 120000000, 1.15, 1.2, -0.005, 'SCIENCE', '#BC002D', '#FFFFFF', 'Technological leader in robotics and precision engineering. Advanced propulsion systems and automated mining.'),
+('UAE', 'United Arab Emirates', 'UAE Space Agency', 1800000000, 16000, 12000000, 1.3, 0.9, 0.02, 'ECONOMY', '#00732F', '#FF0000', 'Wealth-driven space program with massive investment capital. Specializes in energy systems and economic efficiency.'),
+('BRA', 'Brazil', 'Agência Espacial Brasileira / ALCE', 1100000000, 15000, 250000000, 0.9, 0.95, 0.012, 'EXPANSION', '#009739', '#FFDF00', 'Latin American Coalition for Exploration. Rich in natural resources, excels at mining and sustainable colonies.');
 
 -- Test query
 SELECT 'Schema FuturY creato con successo!' as status;

@@ -1,0 +1,373 @@
+/**
+ * 🚀 FUTURY - Nation Selector Styles
+ * Interactive world map nation selection
+ * @version 1.0.0
+ */
+
+/* Nation Selector Container */
+.nation-selector-container {
+    position: relative;
+    width: 100%;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 40px 20px;
+    z-index: 10;
+}
+
+.selector-title {
+    font-size: 3rem;
+    font-weight: bold;
+    margin-bottom: 0.5rem;
+    background: linear-gradient(45deg, #4fd1c7, #63b3ed);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    text-align: center;
+}
+
+.selector-subtitle {
+    font-size: 1.2rem;
+    color: #a0aec0;
+    margin-bottom: 3rem;
+    text-align: center;
+}
+
+/* World Map Container (Grid Layout) */
+.world-map-wrapper {
+    width: 90vw;
+    max-width: 1200px;
+    min-height: 60vh;
+    background: rgba(15, 23, 42, 0.6);
+    backdrop-filter: blur(10px);
+    border: 2px solid rgba(79, 209, 199, 0.3);
+    border-radius: 20px;
+    padding: 20px;
+    overflow: visible;
+    position: relative;
+}
+
+/* Nation Grid Layout */
+.nation-grid {
+    display: grid;
+    grid-template-columns: repeat(6, 1fr);
+    grid-template-rows: repeat(4, 1fr);
+    gap: 15px;
+    width: 100%;
+    height: 55vh;
+    min-height: 400px;
+}
+
+/* Nation Cells */
+.nation-cell {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    border-radius: 15px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    filter: brightness(0.8);
+    border: 2px solid rgba(255, 255, 255, 0.2);
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+}
+
+.nation-cell:hover {
+    filter: brightness(1.2) drop-shadow(0 0 20px currentColor);
+    transform: scale(1.05) translateY(-5px);
+    border-color: #4fd1c7;
+    z-index: 10;
+}
+
+.nation-cell.selected {
+    filter: brightness(1.4) drop-shadow(0 0 30px currentColor);
+    border: 3px solid #4fd1c7;
+    border-width: 4px;
+    transform: scale(1.1) translateY(-8px);
+    animation: pulse 2s infinite;
+    z-index: 20;
+}
+
+@keyframes pulse {
+    0%, 100% {
+        opacity: 1;
+        box-shadow: 0 0 20px currentColor;
+    }
+    50% {
+        opacity: 0.85;
+        box-shadow: 0 0 40px currentColor;
+    }
+}
+
+/* Tier Badges */
+.nation-cell.tier-1 {
+    border-color: #4fd1c7;
+    box-shadow: 0 4px 20px rgba(79, 209, 199, 0.4);
+}
+
+.nation-cell.tier-2 {
+    border-color: #63b3ed;
+    opacity: 0.9;
+    box-shadow: 0 4px 15px rgba(99, 179, 237, 0.3);
+}
+
+.nation-tier-badge {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    font-size: 1.5rem;
+    color: #ffd700;
+    text-shadow: 0 0 10px rgba(255, 215, 0, 0.8);
+}
+
+/* Nation Content */
+.nation-flag {
+    font-size: 3rem;
+    margin-bottom: 10px;
+    filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.5));
+}
+
+.nation-name {
+    font-size: 1.2rem;
+    font-weight: 600;
+    color: white;
+    text-align: center;
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.8);
+}
+
+/* Nation Tooltip */
+.nation-tooltip {
+    position: absolute;
+    top: 50%;
+    right: 40px;
+    transform: translateY(-50%);
+    background: rgba(15, 23, 42, 0.95);
+    backdrop-filter: blur(20px);
+    border: 2px solid rgba(79, 209, 199, 0.5);
+    border-radius: 15px;
+    padding: 20px;
+    width: 320px;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+    transition: all 0.3s ease;
+    z-index: 100;
+}
+
+.nation-tooltip.hidden {
+    opacity: 0;
+    pointer-events: none;
+    transform: translateY(-50%) translateX(20px);
+}
+
+.nation-tooltip h3 {
+    font-size: 1.5rem;
+    margin-bottom: 10px;
+    font-weight: bold;
+}
+
+.nation-desc {
+    font-size: 0.9rem;
+    color: #cbd5e0;
+    margin-bottom: 15px;
+    line-height: 1.5;
+}
+
+/* Stats Grid */
+.stats-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+}
+
+.stat {
+    background: rgba(79, 209, 199, 0.1);
+    padding: 12px 8px;
+    border-radius: 8px;
+    text-align: center;
+    border: 1px solid rgba(79, 209, 199, 0.2);
+}
+
+.stat-label {
+    display: block;
+    font-size: 0.75rem;
+    color: #a0aec0;
+    margin-bottom: 5px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.stat-value {
+    display: block;
+    font-size: 1.1rem;
+    font-weight: bold;
+    color: #4fd1c7;
+}
+
+/* Selection Actions */
+.selection-actions {
+    margin-top: 2rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 20px;
+    flex-wrap: wrap;
+}
+
+.selected-nation-info {
+    font-size: 1.2rem;
+    color: #4fd1c7;
+    font-weight: 600;
+    padding: 10px 20px;
+    background: rgba(79, 209, 199, 0.1);
+    border-radius: 10px;
+    border: 1px solid rgba(79, 209, 199, 0.3);
+}
+
+.selected-nation-info.hidden {
+    display: none;
+}
+
+/* Confirm Button */
+#confirm-nation-btn {
+    padding: 15px 40px;
+    font-size: 1.1rem;
+    font-weight: bold;
+    background: linear-gradient(135deg, #4fd1c7, #63b3ed);
+    border: none;
+    border-radius: 10px;
+    color: white;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    box-shadow: 0 5px 20px rgba(79, 209, 199, 0.4);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+#confirm-nation-btn:hover:not(:disabled) {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 30px rgba(79, 209, 199, 0.6);
+}
+
+#confirm-nation-btn:active:not(:disabled) {
+    transform: translateY(0);
+}
+
+#confirm-nation-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    background: #4a5568;
+    box-shadow: none;
+}
+
+/* Error Message */
+.error-message {
+    text-align: center;
+    padding: 40px;
+    color: #fc8181;
+}
+
+.error-message h3 {
+    font-size: 2rem;
+    margin-bottom: 10px;
+}
+
+.error-message p {
+    font-size: 1.1rem;
+    color: #fed7d7;
+}
+
+/* Responsive Design */
+@media (max-width: 1024px) {
+    .selector-title {
+        font-size: 2.5rem;
+    }
+
+    .nation-grid {
+        grid-template-columns: repeat(4, 1fr);
+        gap: 12px;
+    }
+
+    .nation-tooltip {
+        right: 20px;
+        width: 280px;
+    }
+}
+
+@media (max-width: 768px) {
+    .selector-title {
+        font-size: 2rem;
+    }
+
+    .world-map-wrapper {
+        height: auto;
+        min-height: 50vh;
+    }
+
+    .nation-grid {
+        grid-template-columns: repeat(3, 1fr);
+        grid-template-rows: auto;
+        height: auto;
+        gap: 10px;
+    }
+
+    .nation-cell {
+        padding: 15px 10px;
+    }
+
+    .nation-flag {
+        font-size: 2rem;
+    }
+
+    .nation-name {
+        font-size: 1rem;
+    }
+
+    .nation-tooltip {
+        position: fixed;
+        top: auto;
+        bottom: 100px;
+        right: 20px;
+        left: 20px;
+        width: auto;
+        transform: none;
+    }
+
+    .nation-tooltip.hidden {
+        transform: translateY(20px);
+    }
+
+    .selection-actions {
+        flex-direction: column;
+    }
+}
+
+@media (max-width: 480px) {
+    .selector-title {
+        font-size: 1.5rem;
+    }
+
+    .nation-grid {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 8px;
+    }
+
+    .nation-cell {
+        padding: 10px 5px;
+    }
+
+    .nation-flag {
+        font-size: 1.5rem;
+    }
+
+    .nation-name {
+        font-size: 0.85rem;
+    }
+
+    #confirm-nation-btn {
+        padding: 12px 30px;
+        font-size: 1rem;
+    }
+}

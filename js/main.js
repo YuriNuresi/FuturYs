@@ -21,18 +21,23 @@ class FuturY {
     
     async init() {
         console.log('🚀 FuturY - Initializing Application...');
-        
+
         try {
+            // Get selected nation from URL parameter or sessionStorage
+            this.selectedNation = this.getSelectedNation();
+
+            if (!this.selectedNation) {
+                throw new Error('No nation selected. Please select a nation from the main menu.');
+            }
+
+            console.log(`Starting game with nation: ${this.selectedNation}`);
+
             // Initialize API Client
             this.apiClient = new APIClient();
-            
+
             // Initialize UI Controller
             this.uiController = new UIController();
-            this.setupUIEvents();
-            
-            // Wait for nation selection
-            await this.waitForNationSelection();
-            
+
             // Initialize Game Engine with selected nation
             this.gameEngine = new GameEngine(this.selectedNation, this.apiClient);
             await this.gameEngine.init();
@@ -56,45 +61,33 @@ class FuturY {
         }
     }
     
-    setupUIEvents() {
-        // Nation selection
-        const nationCards = document.querySelectorAll('.nation-card');
-        nationCards.forEach(card => {
-            card.addEventListener('click', () => {
-                this.selectNation(card);
-            });
-        });
-        
-        // Start game button
-        const startButton = document.getElementById('start-game-btn');
-        if (startButton) {
-            startButton.addEventListener('click', () => {
-                if (this.selectedNation) {
-                    this.startGame();
-                }
-            });
+    /**
+     * Get selected nation from URL parameter or sessionStorage
+     */
+    getSelectedNation() {
+        // Try URL parameter first
+        const urlParams = new URLSearchParams(window.location.search);
+        const nationFromURL = urlParams.get('nation');
+
+        if (nationFromURL) {
+            console.log(`Nation from URL: ${nationFromURL}`);
+            return nationFromURL;
         }
-    }
-    
-    selectNation(card) {
-        // Remove previous selection
-        document.querySelectorAll('.nation-card').forEach(c => {
-            c.classList.remove('selected');
-        });
-        
-        // Select this nation
-        card.classList.add('selected');
-        this.selectedNation = card.dataset.nation;
-        
-        console.log(`Selected nation: ${this.selectedNation}`);
-        
-        // Enable start button
-        const startButton = document.getElementById('start-game-btn');
-        if (startButton) {
-            startButton.disabled = false;
+
+        // Fallback to sessionStorage
+        const nationFromStorage = sessionStorage.getItem('selectedNation');
+        if (nationFromStorage) {
+            console.log(`Nation from sessionStorage: ${nationFromStorage}`);
+            return nationFromStorage;
         }
+
+        console.warn('No nation selected');
+        return null;
     }
-    
+
+    /**
+     * Old method - kept for backwards compatibility but not used
+     */
     waitForNationSelection() {
         return new Promise((resolve) => {
             this.resolveNationSelection = resolve;
