@@ -36,6 +36,47 @@
             font-size: 12px;
             line-height: 1.6;
         }
+
+        /* Launch Sequence Overlay (card_403) */
+        #launch-sequence-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background: rgba(0, 0, 0, 0.9);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 9999;
+            pointer-events: none;
+        }
+        #launch-sequence-overlay.active {
+            display: flex;
+        }
+        .countdown-display {
+            font-size: 120px;
+            font-weight: bold;
+            color: #4fd1c7;
+            text-shadow: 0 0 40px rgba(79, 209, 199, 0.8),
+                         0 0 80px rgba(79, 209, 199, 0.4);
+            animation: countdown-pulse 0.8s ease-in-out;
+        }
+        .countdown-display.launch {
+            font-size: 80px;
+            animation: launch-flash 1.2s ease-out;
+        }
+        @keyframes countdown-pulse {
+            0%, 100% { transform: scale(1); opacity: 0.9; }
+            50% { transform: scale(1.15); opacity: 1; }
+        }
+        @keyframes launch-flash {
+            0% { transform: scale(1); opacity: 1; color: #4fd1c7; }
+            30% { transform: scale(1.4); opacity: 1; color: #ff6b35; }
+            60% { transform: scale(1.8); opacity: 0.8; color: #ffd700; }
+            100% { transform: scale(2.5); opacity: 0; }
+        }
+
         /* Resource Display */
         #resources-display {
             position: fixed;
@@ -337,6 +378,11 @@
 </head>
 <body>
     <canvas id="solar-system-canvas"></canvas>
+
+    <!-- Launch Sequence Overlay (card_403) -->
+    <div id="launch-sequence-overlay">
+        <div id="countdown-text" class="countdown-display"></div>
+    </div>
 
     <!-- Navigation Menu -->
     <div id="nav-menu">
@@ -669,6 +715,49 @@
             }
         }
 
+        /**
+         * Play mission launch sequence animation (card_403)
+         * @param {string} destination - Target planet name
+         * @param {Function} onComplete - Callback when sequence completes
+         */
+        async function playLaunchSequence(destination, onComplete) {
+            const overlay = document.getElementById('launch-sequence-overlay');
+            const countdownText = document.getElementById('countdown-text');
+
+            // Zoom camera to Earth
+            const earth = renderer.scene.getObjectByName('Earth');
+            if (earth) {
+                renderer._animateCameraToPlanet(earth);
+            }
+
+            // Show overlay
+            overlay.classList.add('active');
+
+            // Countdown: 3... 2... 1... LAUNCH!
+            const countdown = ['3', '2', '1', '🚀 LAUNCH!'];
+
+            for (let i = 0; i < countdown.length; i++) {
+                countdownText.textContent = countdown[i];
+                countdownText.className = 'countdown-display';
+
+                // Special styling for launch
+                if (i === countdown.length - 1) {
+                    countdownText.classList.add('launch');
+                }
+
+                // Wait for animation
+                await new Promise(resolve => setTimeout(resolve, i === countdown.length - 1 ? 1200 : 800));
+            }
+
+            // Hide overlay
+            overlay.classList.remove('active');
+
+            // Execute callback
+            if (onComplete) {
+                onComplete();
+            }
+        }
+
         // Launch mission button
         document.getElementById('launch-mission-btn').addEventListener('click', async () => {
             if (!selectedPlanet) return;
@@ -692,32 +781,36 @@
                 return;
             }
 
-            const result = resourceManager.consume(costs);
+            // Play launch sequence animation (card_403)
+            await playLaunchSequence(destination, () => {
+                // Consume resources after launch sequence
+                const result = resourceManager.consume(costs);
 
-            if (result.success) {
-                const travelTime = missionManager.getTravelTime('Earth', destination);
-                const mission = {
-                    id: Date.now(),
-                    name: destination === 'Mars' ? 'First Mars Expedition' : `Mission to ${destination}`,
-                    origin: 'Earth',
-                    destination: destination,
-                    mission_type: destination === 'Mars' ? 'COLONIZATION' : 'EXPLORATION',
-                    status: 'TRAVELING',
-                    launch_year: currentGameYear,
-                    arrival_year: currentGameYear + travelTime,
-                    travel_time_years: travelTime,
-                    progress: 0
-                };
+                if (result.success) {
+                    const travelTime = missionManager.getTravelTime('Earth', destination);
+                    const mission = {
+                        id: Date.now(),
+                        name: destination === 'Mars' ? 'First Mars Expedition' : `Mission to ${destination}`,
+                        origin: 'Earth',
+                        destination: destination,
+                        mission_type: destination === 'Mars' ? 'COLONIZATION' : 'EXPLORATION',
+                        status: 'TRAVELING',
+                        launch_year: currentGameYear,
+                        arrival_year: currentGameYear + travelTime,
+                        travel_time_years: travelTime,
+                        progress: 0
+                    };
 
-                missionManager.addMission(mission);
-                updateMissionsDisplay();
+                    missionManager.addMission(mission);
+                    updateMissionsDisplay();
 
-                const eta = missionManager.formatTravelTime(travelTime);
-                notificationManager.success('Mission Launched! 🚀',
-                    `${mission.name} is underway! ETA: ${eta}`, 5000);
+                    const eta = missionManager.formatTravelTime(travelTime);
+                    notificationManager.success('Mission Launched! 🚀',
+                        `${mission.name} is underway! ETA: ${eta}`, 5000);
 
-                console.log(`🚀 Mission to ${destination} launched. Arrival in ${eta}`);
-            }
+                    console.log(`🚀 Mission to ${destination} launched. Arrival in ${eta}`);
+                }
+            });
         });
 
         await renderer.init();
