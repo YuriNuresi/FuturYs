@@ -14,6 +14,10 @@ class TimeManager {
     const SECONDS_PER_YEAR = 86400; // 24 hours
     const TIME_SCALE = 1 / self::SECONDS_PER_YEAR; // ≈ 0.0000115740
 
+    // Maximum offline time to prevent abuse (30 days real = 30 years game)
+    const MAX_OFFLINE_DAYS = 30;
+    const MAX_OFFLINE_SECONDS = self::MAX_OFFLINE_DAYS * 86400; // 2,592,000 seconds
+
     public function __construct() {
         $this->db = getDB();
     }
@@ -89,16 +93,33 @@ class TimeManager {
         $lastUpdate = strtotime($session['last_update']);
         $realSecondsElapsed = $now - $lastUpdate;
 
+        // Cap offline time to prevent abuse
+        $wasCapped = false;
+        if ($realSecondsElapsed > self::MAX_OFFLINE_SECONDS) {
+            $wasCapped = true;
+            $originalSeconds = $realSecondsElapsed;
+            $realSecondsElapsed = self::MAX_OFFLINE_SECONDS;
+        }
+
         // Calcola anni di gioco trascorsi
         $yearsElapsed = $realSecondsElapsed * self::TIME_SCALE;
         $newGameYear = (float)$session['current_game_year'] + $yearsElapsed;
 
-        return [
+        $result = [
             'new_game_year' => $newGameYear,
             'years_elapsed' => $yearsElapsed,
             'real_seconds_elapsed' => $realSecondsElapsed,
             'real_hours_elapsed' => round($realSecondsElapsed / 3600, 2)
         ];
+
+        // Add cap info if time was capped
+        if ($wasCapped) {
+            $result['was_capped'] = true;
+            $result['original_seconds_elapsed'] = $originalSeconds;
+            $result['max_offline_days'] = self::MAX_OFFLINE_DAYS;
+        }
+
+        return $result;
     }
 
     /**
@@ -214,8 +235,26 @@ class TimeManager {
         $fraction = $gameYear - $year;
         $dayOfYear = floor($fraction * 365.25) + 1;
 
-        // Calcola mese approssimativo
-        $daysInMonth = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
+        // Check if leap year (Gregorian calendar)
+        // Leap if divisible by 4, except centuries unless divisible by 400
+        $isLeapYear = ($year % 4 == 0 && $year % 100 != 0) || ($year % 400 == 0);
+
+        // Calcola mese approssimativo (with leap year support)
+        $daysInMonth = [
+            31,                          // January
+            $isLeapYear ? 29 : 28,      // February (29 in leap years)
+            31,                          // March
+            30,                          // April
+            31,                          // May
+            30,                          // June
+            31,                          // July
+            31,                          // August
+            30,                          // September
+            31,                          // October
+            30,                          // November
+            31                           // December
+        ];
+
         $month = 0;
         $day = $dayOfYear;
 
@@ -229,6 +268,7 @@ class TimeManager {
             'month' => $month + 1,
             'day' => $day,
             'day_of_year' => $dayOfYear,
+            'is_leap_year' => $isLeapYear,
             'formatted' => sprintf('Year %d, Day %d', $year, $dayOfYear)
         ];
     }
