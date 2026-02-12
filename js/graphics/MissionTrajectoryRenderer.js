@@ -76,10 +76,14 @@ export class MissionTrajectoryRenderer {
      * Get planet position by name
      */
     getPlanetPosition(planetName) {
+        console.log(`[Trajectory] Looking for planet: "${planetName}"`);
+        console.log(`[Trajectory] Available planets:`, Array.from(this.planets.keys()));
         const planet = this.planets.get(planetName);
         if (planet) {
+            console.log(`[Trajectory] Found planet ${planetName}, position:`, planet.position);
             return planet.position.clone();
         }
+        console.warn(`[Trajectory] Planet "${planetName}" not found in map!`);
         return null;
     }
 
