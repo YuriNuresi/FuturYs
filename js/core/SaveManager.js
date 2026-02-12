@@ -83,7 +83,7 @@ export class SaveManager {
         }
 
         try {
-            const response = await fetch('/php/api/save.php', {
+            const response = await fetch('php/api/save.php', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -113,7 +113,7 @@ export class SaveManager {
      */
     async autoSave() {
         try {
-            const response = await fetch('/php/api/save.php', {
+            const response = await fetch('php/api/save.php', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -145,7 +145,7 @@ export class SaveManager {
         }
 
         try {
-            const response = await fetch(`/php/api/save.php?session_id=${this.sessionId}&action=state`);
+            const response = await fetch(`php/api/save.php?session_id=${this.sessionId}&action=state`);
             const result = await response.json();
 
             if (result.success) {
@@ -191,7 +191,7 @@ export class SaveManager {
      */
     async getSaveInfo() {
         try {
-            const response = await fetch(`/php/api/save.php?session_id=${this.sessionId}&action=info`);
+            const response = await fetch(`php/api/save.php?session_id=${this.sessionId}&action=info`);
             const result = await response.json();
             return result;
         } catch (error) {

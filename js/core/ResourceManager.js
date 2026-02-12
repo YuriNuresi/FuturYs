@@ -334,7 +334,7 @@ export class ResourceManager {
      */
     async syncWithServer(sessionId) {
         try {
-            const response = await fetch(`/php/api/resources.php?session_id=${sessionId}`);
+            const response = await fetch(`php/api/resources.php?session_id=${sessionId}`);
             const data = await response.json();
 
             if (data.success) {
