@@ -113,12 +113,20 @@ export class SaveManager {
      */
     async autoSave() {
         try {
+            // Build current game state from managers
+            const gameState = this.buildGameState(
+                window.timeManager,
+                window.resourceManager,
+                window.missionManager
+            );
+
             const response = await fetch('php/api/save.php', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     session_id: this.sessionId,
-                    action: 'autosave'
+                    action: 'autosave',
+                    game_state: gameState
                 })
             });
 
@@ -127,6 +135,7 @@ export class SaveManager {
             if (result.success) {
                 this.lastSaveTime = new Date();
                 console.log('💾 Auto-save completed at', result.data.saved_at);
+                this.notifySave(result.data);
             }
 
             return result;
