@@ -894,15 +894,11 @@
         };
 
         // Initialize trajectory renderer after scene is ready
+        // Use planet groups from SolarSystemRenderer for accurate positions
         const planetsMap = new Map();
-        planetsMap.set('Earth', renderer.scene.getObjectByName('Earth'));
-        planetsMap.set('Mars', renderer.scene.getObjectByName('Mars'));
-        planetsMap.set('Venus', renderer.scene.getObjectByName('Venus'));
-        planetsMap.set('Jupiter', renderer.scene.getObjectByName('Jupiter'));
-        planetsMap.set('Saturn', renderer.scene.getObjectByName('Saturn'));
-        planetsMap.set('Mercury', renderer.scene.getObjectByName('Mercury'));
-        planetsMap.set('Uranus', renderer.scene.getObjectByName('Uranus'));
-        planetsMap.set('Neptune', renderer.scene.getObjectByName('Neptune'));
+        for (const [name, planetData] of renderer.planets.entries()) {
+            planetsMap.set(name, planetData.group);
+        }
 
         trajectoryRenderer = new MissionTrajectoryRenderer(renderer.scene, planetsMap);
 
