@@ -947,7 +947,7 @@
 
         async function loadNationData(nationCode) {
             try {
-                const response = await fetch(`/php/api/nations.php?code=${nationCode}`);
+                const response = await fetch(`php/api/nations.php?code=${nationCode}`);
                 const result = await response.json();
 
                 if (result.success && result.data) {
