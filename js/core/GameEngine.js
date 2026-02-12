@@ -6,7 +6,7 @@
 
 import { TimeManager } from './TimeManager.js';
 import { ResourceManager } from './ResourceManager.js';
-import { MissionManager } from '../gameplay/MissionManager.js';
+import { MissionManager } from './MissionManager.js';
 
 export class GameEngine {
     constructor(nation, apiClient) {
@@ -16,7 +16,7 @@ export class GameEngine {
         // Core managers
         this.timeManager = new TimeManager();
         this.resourceManager = new ResourceManager(nation);
-        this.missionManager = new MissionManager(this.timeManager);
+        this.missionManager = new MissionManager();
         
         // Game state
         this.state = {
@@ -183,9 +183,9 @@ export class GameEngine {
         
         // Update resources (passive generation)
         this.resourceManager.update(deltaTime);
-        
+
         // Update missions
-        const completedMissions = this.missionManager.update(timestamp);
+        const completedMissions = this.missionManager.update(this.state.year);
         
         // Handle completed missions
         completedMissions.forEach(mission => {
@@ -198,41 +198,34 @@ export class GameEngine {
         }
     }
     
-    launchMission(missionData) {
+    async launchMission(missionData) {
         console.log('🚀 Launching mission:', missionData);
-        
-        // Calculate cost
-        const cost = this.missionManager.calculateCost(missionData);
-        
+
+        // Get mission cost
+        const cost = this.missionManager.getMissionCost(missionData.destination);
+
         // Check if can afford
         if (!this.resourceManager.canAfford(cost)) {
-            console.warn('❌ Not enough resources');
-            return false;
+            console.warn('❌ Not enough resources for mission');
+            return { success: false, error: 'Insufficient resources' };
         }
-        
-        // Deduct resources
-        this.resourceManager.spend(cost);
-        
-        // Create mission
-        const mission = this.missionManager.launch(missionData);
-        
-        // Save to backend
-        this.saveMission(mission);
-        
-        return mission;
-    }
-    
-    async saveMission(mission) {
-        try {
-            await this.apiClient.post('/api/missions/create', {
-                session_id: this.state.sessionId,
-                mission: mission
-            });
-        } catch (error) {
-            console.warn('Could not save mission to backend');
+
+        // Use the core MissionManager's createMission which handles resource consumption
+        const result = await this.missionManager.createMission(this.state.sessionId, {
+            name: missionData.name || `Mission to ${missionData.destination}`,
+            origin: missionData.origin || 'Earth',
+            destination: missionData.destination,
+            mission_type: missionData.type || 'EXPLORATION'
+        });
+
+        if (result.success) {
+            console.log('✅ Mission launched successfully:', result.mission);
+            return result;
+        } else {
+            console.warn('❌ Mission launch failed:', result.error);
+            return result;
         }
     }
-    
     getState() {
         return {
             year: this.state.year,

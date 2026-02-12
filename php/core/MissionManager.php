@@ -22,15 +22,16 @@ class MissionManager {
 
     // Realistic travel times (in game years)
     // Based on: 24h real = 1 year game, so travel times scaled for gameplay
+    // Aligned with JS core/MissionManager.js for consistency
     const TRAVEL_TIMES = [
-        'Earth-Moon' => 0.003,      // ~1 real hour
-        'Earth-Mars' => 0.12,       // ~3 real days (2-3 days as per spec)
-        'Earth-Jupiter' => 0.25,    // ~6 real days (5-6 days as per spec)
-        'Earth-Saturn' => 0.35,     // ~8.5 real days
-        'Earth-Uranus' => 0.50,     // ~12 real days
-        'Earth-Neptune' => 0.65,    // ~16 real days
-        'Mars-Jupiter' => 0.15,     // ~3.6 real days
-        'Mars-Saturn' => 0.25,      // ~6 real days
+        'Earth-Moon' => 0.125,      // 3 hours real (~1 game month)
+        'Earth-Mars' => 2.5,        // 2.5 days real (6-9 months narrative)
+        'Earth-Jupiter' => 5.5,     // 5.5 days real (12-18 months narrative)
+        'Earth-Saturn' => 8.0,      // 8 days real (2-3 years narrative)
+        'Earth-Uranus' => 12.0,     // 12 days real (3-4 years narrative)
+        'Earth-Neptune' => 15.0,    // 15 days real (4-5 years narrative)
+        'Mars-Jupiter' => 3.0,      // 3 days real
+        'Mars-Saturn' => 5.5,       // 5.5 days real
     ];
 
     // Mission costs (resources required)
@@ -111,8 +112,9 @@ class MissionManager {
         $dist2 = $distances[$toPlanet] ?? 1.0;
         $distance = abs($dist2 - $dist1);
 
-        // Scale: 1 AU ≈ 0.05 game years (1.2 real days)
-        return $distance * 0.05;
+        // Scale: 1 AU ≈ 4.8 game years (~4.8 real days)
+        // Based on Earth-Mars (0.52 AU) = 2.5 game years
+        return $distance * 4.8;
     }
 
     /**
