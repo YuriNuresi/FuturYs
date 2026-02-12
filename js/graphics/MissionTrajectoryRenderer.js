@@ -76,14 +76,16 @@ export class MissionTrajectoryRenderer {
      * Get planet position by name
      */
     getPlanetPosition(planetName) {
-        console.log(`[Trajectory] Looking for planet: "${planetName}"`);
+        // Normalize to lowercase since planet keys in map are lowercase
+        const normalizedName = planetName.toLowerCase();
+        console.log(`[Trajectory] Looking for planet: "${planetName}" -> normalized: "${normalizedName}"`);
         console.log(`[Trajectory] Available planets:`, Array.from(this.planets.keys()));
-        const planet = this.planets.get(planetName);
+        const planet = this.planets.get(normalizedName);
         if (planet) {
-            console.log(`[Trajectory] Found planet ${planetName}, position:`, planet.position);
+            console.log(`[Trajectory] Found planet ${normalizedName}, position:`, planet.position);
             return planet.position.clone();
         }
-        console.warn(`[Trajectory] Planet "${planetName}" not found in map!`);
+        console.warn(`[Trajectory] Planet "${planetName}" (normalized: "${normalizedName}") not found in map!`);
         return null;
     }
 
