@@ -672,6 +672,11 @@
         const tutorialManager = new TutorialManager();
         const colonizationManager = new ColonizationManager();
 
+        // Expose managers globally for SaveManager access
+        window.timeManager = timeManager;
+        window.resourceManager = resourceManager;
+        window.missionManager = missionManager;
+
         let selectedPlanet = null;
         let trajectoryRenderer = null; // Will be initialized after renderer is ready
 
@@ -990,6 +995,20 @@
 
         // Initialize save manager (session ID 1 for now)
         saveManager.init(1);
+
+        // Try to load saved game
+        saveManager.loadGame().then(gameState => {
+            if (gameState && gameState.session) {
+                console.log('📂 Loading saved game...');
+                saveManager.applyGameState(gameState, timeManager, resourceManager, missionManager);
+                console.log('✅ Saved game restored');
+            } else {
+                console.log('🆕 Starting new game (no save found)');
+            }
+        }).catch(err => {
+            console.log('🆕 Starting new game (load error):', err.message);
+        });
+
         saveManager.startAutoSave();
 
         // Save notification
