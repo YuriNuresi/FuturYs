@@ -277,7 +277,7 @@ export class MissionManager {
      */
     async createMission(sessionId, missionData) {
         try {
-            const response = await fetch('/php/api/missions.php', {
+            const response = await fetch('php/api/missions.php', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -317,7 +317,7 @@ export class MissionManager {
      */
     async syncWithServer(sessionId) {
         try {
-            const response = await fetch(`/php/api/missions.php?session_id=${sessionId}`);
+            const response = await fetch(`php/api/missions.php?session_id=${sessionId}`);
             const result = await response.json();
 
             if (result.success) {

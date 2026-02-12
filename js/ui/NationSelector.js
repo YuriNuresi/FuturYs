@@ -9,7 +9,7 @@ export class NationSelector {
         this.nations = [];
         this.selectedNation = null;
         this.onConfirm = null; // Callback function
-        this.apiBasePath = '/php/api';
+        this.apiBasePath = 'php/api';
     }
 
     /**

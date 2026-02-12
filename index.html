@@ -418,7 +418,7 @@
             
             try {
                 // TODO: Fetch saved games
-                const response = await fetch('/php/api/save-load.php?action=list');
+                const response = await fetch('php/api/save-load.php?action=list');
                 const savedGames = await response.json();
                 
                 if (savedGames.length === 0) {
@@ -459,7 +459,7 @@
         
         async function testDatabaseConnection() {
             try {
-                const response = await fetch('/php/config/database.php');
+                const response = await fetch('php/config/database.php');
                 return response.ok;
             } catch (error) {
                 console.error('Database test failed:', error);

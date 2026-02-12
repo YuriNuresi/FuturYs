@@ -22,7 +22,7 @@ export class BuildingManager {
     async init() {
         try {
             // Try to load from API
-            const response = await fetch('/php/api/buildings.php');
+            const response = await fetch('php/api/buildings.php');
             const result = await response.json();
 
             if (result.success) {
