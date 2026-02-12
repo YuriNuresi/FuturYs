@@ -655,6 +655,7 @@
         import { SaveManager } from './js/core/SaveManager.js?v=20250211';
         import { TimeManager } from './js/core/TimeManager.js?v=20250211';
         import { NotificationManager } from './js/ui/NotificationManager.js?v=20250211';
+        import { TutorialManager } from './js/ui/TutorialManager.js?v=20250211';
 
         const renderer = new SolarSystemRenderer('solar-system-canvas');
         const uiController = new UIController();
@@ -664,6 +665,7 @@
         const buildingManager = new BuildingManager(resourceManager, timeManager);
         const saveManager = new SaveManager();
         const notificationManager = new NotificationManager();
+        const tutorialManager = new TutorialManager();
 
         let selectedPlanet = null;
         let trajectoryRenderer = null; // Will be initialized after renderer is ready
@@ -686,6 +688,9 @@
                 }
 
                 notificationManager.info('Navigation', `Switched to ${btn.dataset.view}`, 2000);
+
+                // Tutorial event (card_311)
+                tutorialManager.onEvent('nav-click', view);
             });
         });
 
@@ -695,6 +700,9 @@
                 selectedPlanet = planetInfo;
                 uiController.showPlanetInfo(planetInfo);
                 updateMissionCostDisplay(planetInfo);
+
+                // Tutorial event (card_311)
+                tutorialManager.onEvent('planet-click', planetInfo.name);
             } else {
                 selectedPlanet = null;
                 uiController.hidePlanetInfo();
@@ -809,11 +817,28 @@
                         `${mission.name} is underway! ETA: ${eta}`, 5000);
 
                     console.log(`🚀 Mission to ${destination} launched. Arrival in ${eta}`);
+
+                    // Tutorial event (card_311)
+                    tutorialManager.onEvent('mission-launch', destination);
                 }
             });
         });
 
         await renderer.init();
+
+        // Initialize and start tutorial (card_310, card_311)
+        tutorialManager.init();
+        setTimeout(() => {
+            const started = tutorialManager.start();
+            if (started) {
+                console.log('📚 Tutorial started for new player');
+            }
+        }, 1000); // Delay to let everything load
+
+        tutorialManager.onComplete = () => {
+            notificationManager.success('Tutorial Complete!',
+                'You are ready to save humanity. Good luck, Commander!', 5000);
+        };
 
         // Initialize trajectory renderer after scene is ready
         const planetsMap = new Map();
@@ -848,12 +873,59 @@
         // Initialize time manager
         timeManager.init(2100, 2100);
 
-        // Initialize resources
-        resourceManager.initializeResources({
-            budget: 1000000,
-            science: 10000,
-            population: 500000000
-        });
+        // Get selected nation from URL params or sessionStorage (card_308)
+        const urlParams = new URLSearchParams(window.location.search);
+        const selectedNationCode = urlParams.get('nation') || sessionStorage.getItem('selectedNation') || 'USA';
+
+        console.log(`🌍 Selected Nation: ${selectedNationCode}`);
+
+        // Load nation data and initialize resources with bonuses
+        let selectedNation = null;
+
+        async function loadNationData(nationCode) {
+            try {
+                const response = await fetch(`/php/api/nations.php?code=${nationCode}`);
+                const result = await response.json();
+
+                if (result.success && result.data) {
+                    const nation = result.data;
+                    console.log('📊 Nation loaded:', nation);
+
+                    // Initialize resources with nation-specific values and multipliers
+                    resourceManager.initializeResources({
+                        budget: nation.starting_budget || 1000000,
+                        science: nation.starting_science || 10000,
+                        population: nation.starting_population || 500000000,
+                        budgetMultiplier: nation.budget_multiplier || 1.0,
+                        scienceMultiplier: nation.science_multiplier || 1.0,
+                        populationGrowthRate: nation.population_growth_rate || 0.02
+                    });
+
+                    selectedNation = nation;
+
+                    // Show nation selection notification
+                    notificationManager.info('Nation Selected',
+                        `Playing as ${nation.name}. Budget +${((nation.budget_multiplier - 1) * 100).toFixed(0)}%, Science +${((nation.science_multiplier - 1) * 100).toFixed(0)}%`,
+                        5000);
+
+                    return nation;
+                } else {
+                    throw new Error('Nation not found');
+                }
+            } catch (error) {
+                console.warn('Failed to load nation, using defaults:', error);
+                // Fallback to default values
+                resourceManager.initializeResources({
+                    budget: 1000000,
+                    science: 10000,
+                    population: 500000000
+                });
+                return null;
+            }
+        }
+
+        // Load nation before initializing save manager
+        loadNationData(selectedNationCode);
 
         // Initialize save manager (session ID 1 for now)
         saveManager.init(1);

@@ -71,14 +71,15 @@ export class ResourceManager {
         this.resources.water = 1000;
         this.resources.oxygen = 1000;
         
-        // Set multipliers from nation bonuses
+        // Set multipliers from nation bonuses (card_308)
         this.multipliers.budget = nationData.budgetMultiplier || 1.0;
         this.multipliers.science = nationData.scienceMultiplier || 1.0;
-        
-        // Set base production rates
-        this.setBaseProduction();
-        
+
+        // Set base production rates (with nation-specific population growth)
+        this.setBaseProduction(nationData.populationGrowthRate);
+
         console.log('💰 Resources initialized:', this.resources);
+        console.log('🎯 Nation bonuses: Budget ' + ((this.multipliers.budget * 100).toFixed(0)) + '%, Science ' + ((this.multipliers.science * 100).toFixed(0)) + '%');
     }
     
     loadResources(savedResources) {
@@ -86,14 +87,14 @@ export class ResourceManager {
         console.log('📦 Resources loaded from save');
     }
     
-    setBaseProduction() {
+    setBaseProduction(customPopulationGrowth) {
         // Base production per game year
         // Balanced for MVP: 24h real = 1 year game, Mars mission achievable in 2-3 days
         // Starting resources: $1M, 10K science, 500M population
         this.production = {
             budget: 250000,      // 250K per year (Mars mission $500K achievable in ~2 days)
             science: 1500,       // 1.5K per year (Mars needs 2K science, achievable in ~1.5 days)
-            population: 0.02,    // 2% growth per year (doubles population in ~35 years)
+            population: customPopulationGrowth || 0.02,  // Nation-specific growth rate
             energy: 150,         // 150 per year (Mars needs 200 energy, ~1.5 days)
             materials: 120,      // 120 per year (balanced for building construction)
             food: 120,           // 120 per year (sustains population growth)
