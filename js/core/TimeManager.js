@@ -20,11 +20,28 @@ export class TimeManager {
     }
     
     init(startYear = 2100, currentYear = 2100) {
+        // Validate input
+        if (typeof startYear !== 'number' || typeof currentYear !== 'number') {
+            throw new Error('TimeManager: Year values must be numbers');
+        }
+
+        if (startYear < 2000 || startYear > 3000) {
+            throw new Error('TimeManager: Start year must be between 2000 and 3000');
+        }
+
+        if (currentYear < startYear) {
+            throw new Error('TimeManager: Current year cannot be before start year');
+        }
+
+        if (!Number.isFinite(startYear) || !Number.isFinite(currentYear)) {
+            throw new Error('TimeManager: Year values must be finite numbers');
+        }
+
         this.startYear = startYear;
         this.currentYear = currentYear;
         this.startRealTime = Date.now();
         this.isPaused = false;
-        
+
         console.log(`⏰ Time Manager initialized - Start: ${startYear}, Current: ${currentYear}`);
     }
     

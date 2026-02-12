@@ -58,6 +58,19 @@ export class ResourceManager {
             water: 1.0,
             oxygen: 1.0
         };
+
+        // Resource capacity limits (prevents overflow)
+        // Can be upgraded through buildings/research
+        this.capacities = {
+            budget: 100000000,      // 100M cap (upgradeable)
+            science: 1000000,       // 1M cap
+            population: 10000000000, // 10B cap (Earth capacity)
+            energy: 999999,         // Hard cap (matches PHP)
+            materials: 999999,
+            food: 999999,
+            water: 999999,
+            oxygen: 999999
+        };
     }
     
     initializeResources(nationData) {
@@ -108,7 +121,7 @@ export class ResourceManager {
         // Convert to fraction of game year
         const YEAR_IN_MS = 24 * 60 * 60 * 1000; // 24 hours
         const yearFraction = deltaTime / YEAR_IN_MS;
-        
+
         // Update each resource
         for (const resource in this.production) {
             if (resource === 'population') {
@@ -120,8 +133,13 @@ export class ResourceManager {
                 const productionAmount = this.production[resource] * this.multipliers[resource] * yearFraction;
                 this.resources[resource] += productionAmount;
             }
+
+            // Apply capacity limits to prevent overflow
+            if (this.capacities[resource] !== undefined) {
+                this.resources[resource] = Math.min(this.resources[resource], this.capacities[resource]);
+            }
         }
-        
+
         // Round for display
         this.roundResources();
     }
@@ -147,6 +165,11 @@ export class ResourceManager {
     set(resource, amount) {
         if (this.resources.hasOwnProperty(resource)) {
             this.resources[resource] = Math.max(0, amount);
+
+            // Apply capacity limit
+            if (this.capacities[resource] !== undefined) {
+                this.resources[resource] = Math.min(this.resources[resource], this.capacities[resource]);
+            }
         }
     }
     
@@ -155,6 +178,11 @@ export class ResourceManager {
             const oldValue = this.resources[resource];
             this.resources[resource] += amount;
             this.resources[resource] = Math.max(0, this.resources[resource]);
+
+            // Apply capacity limit
+            if (this.capacities[resource] !== undefined) {
+                this.resources[resource] = Math.min(this.resources[resource], this.capacities[resource]);
+            }
 
             // Notify change
             this.notifyChanges({
@@ -312,8 +340,15 @@ export class ResourceManager {
             if (data.success) {
                 const serverResources = {};
 
+                // Resource name mapping (backend uses different names)
+                const resourceMapping = {
+                    'science_points': 'science'  // Backend: science_points → Frontend: science
+                };
+
                 for (const [key, info] of Object.entries(data.data.resources)) {
-                    serverResources[key] = info.value;
+                    // Map backend resource names to frontend names
+                    const frontendKey = resourceMapping[key] || key;
+                    serverResources[frontendKey] = info.value;
                 }
 
                 this.resources = { ...this.resources, ...serverResources };
@@ -350,6 +385,30 @@ export class ResourceManager {
         }
 
         return missing;
+    }
+
+    /**
+     * Set capacity limit for a resource
+     */
+    setCapacity(resource, capacity) {
+        if (this.capacities.hasOwnProperty(resource)) {
+            this.capacities[resource] = capacity;
+        }
+    }
+
+    /**
+     * Get capacity for a resource
+     */
+    getCapacity(resource) {
+        return this.capacities[resource] || Infinity;
+    }
+
+    /**
+     * Check if resource is at capacity
+     */
+    isAtCapacity(resource) {
+        const capacity = this.getCapacity(resource);
+        return this.resources[resource] >= capacity;
     }
 
     /**
