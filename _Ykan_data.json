@@ -951,25 +951,27 @@
             "id": "card_404",
             "title": "Add mission tracking visualization",
             "description": "Visualizzazione progress missione",
-            "column_id": "col_1",
+            "column_id": "col_3",
             "swimlane_id": "lane_5",
             "labels": ["lbl_2"],
             "priority": "medium",
             "story_points": 2,
             "assigned_to": "",
-            "created_at": "2026-02-06"
+            "created_at": "2026-02-06",
+            "completed_at": "2026-02-12"
         },
         {
             "id": "card_405",
             "title": "Enable colonization after mission",
             "description": "Unlock colonizzazione dopo arrivo",
-            "column_id": "col_1",
+            "column_id": "col_3",
             "swimlane_id": "lane_5",
             "labels": ["lbl_2"],
             "priority": "medium",
             "story_points": 2,
             "assigned_to": "",
-            "created_at": "2026-02-06"
+            "created_at": "2026-02-06",
+            "completed_at": "2026-02-12"
         },
         {
             "id": "card_406",

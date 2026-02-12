@@ -519,26 +519,29 @@
     </div>
 
     <style>
-        /* Mission item styles */
+        /* Mission item styles - Enhanced for card_404 */
         .mission-item {
-            margin-bottom: 8px;
-            padding: 8px;
-            background: rgba(79,209,199,0.1);
-            border-radius: 4px;
+            margin-bottom: 10px;
+            padding: 10px;
+            background: rgba(15, 23, 42, 0.8);
+            border-radius: 6px;
             transition: all 0.2s;
-            border: 1px solid transparent;
+            border: 1px solid rgba(79,209,199,0.3);
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
         }
 
         .mission-item:hover {
-            background: rgba(79,209,199,0.2);
+            background: rgba(79,209,199,0.15);
             border-color: #4fd1c7;
-            transform: translateX(-2px);
+            transform: translateX(-3px);
+            box-shadow: 0 4px 12px rgba(79,209,199,0.3);
         }
 
         .mission-item.selected {
-            background: rgba(79,209,199,0.3);
+            background: rgba(79,209,199,0.25);
             border-color: #4fd1c7;
-            box-shadow: 0 0 10px rgba(79,209,199,0.3);
+            box-shadow: 0 0 15px rgba(79,209,199,0.5);
+            transform: translateX(-3px);
         }
 
         #toggle-trajectories-btn:hover {
@@ -656,6 +659,7 @@
         import { TimeManager } from './js/core/TimeManager.js?v=20250211';
         import { NotificationManager } from './js/ui/NotificationManager.js?v=20250211';
         import { TutorialManager } from './js/ui/TutorialManager.js?v=20250211';
+        import { ColonizationManager } from './js/core/ColonizationManager.js?v=20250212';
 
         const renderer = new SolarSystemRenderer('solar-system-canvas');
         const uiController = new UIController();
@@ -666,6 +670,7 @@
         const saveManager = new SaveManager();
         const notificationManager = new NotificationManager();
         const tutorialManager = new TutorialManager();
+        const colonizationManager = new ColonizationManager();
 
         let selectedPlanet = null;
         let trajectoryRenderer = null; // Will be initialized after renderer is ready
@@ -700,6 +705,7 @@
                 selectedPlanet = planetInfo;
                 uiController.showPlanetInfo(planetInfo);
                 updateMissionCostDisplay(planetInfo);
+                updateColonizationStatus(planetInfo);
 
                 // Tutorial event (card_311)
                 tutorialManager.onEvent('planet-click', planetInfo.name);
@@ -720,6 +726,53 @@
                     ⚡ ${costs.energy}
                     ⚙️ ${costs.materials}
                 `;
+            }
+        }
+
+        // Update colonization status display (card_405)
+        function updateColonizationStatus(planetInfo) {
+            const planetName = planetInfo.name;
+            const status = colonizationManager.getColonizationStatus(planetName);
+
+            // Add colonization status to planet panel
+            const panelContent = document.querySelector('#planet-info-panel .panel-content');
+            let statusEl = document.getElementById('colonization-status-display');
+
+            if (!statusEl) {
+                statusEl = document.createElement('div');
+                statusEl.id = 'colonization-status-display';
+                statusEl.style.cssText = `
+                    margin-bottom: 15px;
+                    padding: 10px;
+                    background: rgba(79, 209, 199, 0.1);
+                    border-left: 3px solid ${status.color};
+                    border-radius: 4px;
+                `;
+                panelContent.insertBefore(statusEl, panelContent.firstChild);
+            }
+
+            statusEl.style.borderLeftColor = status.color;
+            statusEl.innerHTML = `
+                <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 5px;">
+                    <span style="font-size: 20px;">${status.icon}</span>
+                    <span style="color: ${status.color}; font-weight: bold; font-size: 14px;">${status.status}</span>
+                </div>
+                <div style="color: #cbd5e0; font-size: 12px;">${status.description}</div>
+                ${status.population ? `<div style="color: #4fd1c7; font-size: 11px; margin-top: 5px;">👥 Population: ${status.population}</div>` : ''}
+            `;
+
+            // Update launch button based on colonization status
+            const launchBtn = document.getElementById('launch-mission-btn');
+            if (colonizationManager.isColonized(planetName)) {
+                launchBtn.textContent = '✅ Already Colonized';
+                launchBtn.disabled = true;
+                launchBtn.style.opacity = '0.5';
+                launchBtn.style.cursor = 'not-allowed';
+            } else {
+                launchBtn.textContent = '🚀 Launch Mission';
+                launchBtn.disabled = false;
+                launchBtn.style.opacity = '1';
+                launchBtn.style.cursor = 'pointer';
             }
         }
 
@@ -873,6 +926,16 @@
         // Initialize time manager
         timeManager.init(2100, 2100);
 
+        // Initialize colonization manager (card_405)
+        colonizationManager.init();
+        colonizationManager.onColonizationChange((data) => {
+            console.log('🏛️ Colonization changed:', data);
+            // Update UI when colonization status changes
+            if (selectedPlanet) {
+                updateColonizationStatus(selectedPlanet);
+            }
+        });
+
         // Get selected nation from URL params or sessionStorage (card_308)
         const urlParams = new URLSearchParams(window.location.search);
         const selectedNationCode = urlParams.get('nation') || sessionStorage.getItem('selectedNation') || 'USA';
@@ -1017,7 +1080,7 @@
         // Initial HUD update
         updateResourcesHUD();
 
-        // Update missions display
+        // Update missions display (Enhanced for card_404)
         function updateMissionsDisplay() {
             const missionsListEl = document.getElementById('missions-list');
             const activeMissions = missionManager.getActiveMissions();
@@ -1031,22 +1094,48 @@
                 const progress = (m.progress * 100).toFixed(0);
                 const yearsRemaining = m.arrival_year - currentGameYear;
                 const etaRealTime = missionManager.formatTravelTime(yearsRemaining);
+                const gameYearsRemaining = yearsRemaining.toFixed(1);
 
-                // Add mission type badge for colonization missions
-                const badge = m.mission_type === 'COLONIZATION' ? '🏗️ ' : '';
+                // Mission type badge
+                let badge = '';
+                let badgeColor = '#4fd1c7';
+                if (m.mission_type === 'COLONIZATION') {
+                    badge = '🏗️';
+                    badgeColor = '#FFB84D';
+                } else {
+                    badge = '🔍';
+                    badgeColor = '#90EE90';
+                }
+
+                // Expected rewards (if colonization mission)
+                let rewardsHtml = '';
+                if (m.mission_type === 'COLONIZATION' && m.destination === 'Mars') {
+                    rewardsHtml = `
+                        <div style="font-size: 10px; color: #4fd1c7; margin-top: 3px; padding-top: 3px; border-top: 1px solid rgba(79,209,199,0.2);">
+                            Expected rewards: 🔬 +5000, 👥 +50 colonists
+                        </div>
+                    `;
+                }
 
                 return `
                     <div class="mission-item" data-mission-id="${m.id}" title="Click to focus on mission trajectory">
-                        <div style="display: flex; justify-content: space-between; font-size: 12px; color: #fff; margin-bottom: 4px;">
-                            <span>${badge}${m.name || (m.origin + ' → ' + m.destination)}</span>
-                            <span style="color: #4fd1c7; font-size: 11px;">${etaRealTime}</span>
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px;">
+                            <div style="display: flex; align-items: center; gap: 6px;">
+                                <span style="font-size: 16px;">${badge}</span>
+                                <span style="font-size: 12px; color: #fff; font-weight: 500;">${m.name || (m.origin + ' → ' + m.destination)}</span>
+                            </div>
+                            <span style="color: ${badgeColor}; font-size: 10px; font-weight: bold; background: rgba(79,209,199,0.1); padding: 2px 6px; border-radius: 3px;">
+                                ${m.mission_type || 'EXPLORATION'}
+                            </span>
                         </div>
-                        <div style="width: 100%; height: 4px; background: rgba(0,0,0,0.5); border-radius: 2px;">
-                            <div style="width: ${progress}%; height: 100%; background: linear-gradient(90deg, #ff4444 0%, #44ff44 100%); border-radius: 2px; transition: width 0.3s;"></div>
+                        <div style="display: flex; justify-content: space-between; font-size: 10px; color: #aaa; margin-bottom: 4px;">
+                            <span>⏱️ ETA: ${etaRealTime} (${gameYearsRemaining}y)</span>
+                            <span style="color: #4fd1c7;">${progress}%</span>
                         </div>
-                        <div style="font-size: 10px; color: #888; margin-top: 2px;">
-                            Progress: ${progress}%
+                        <div style="width: 100%; height: 6px; background: rgba(0,0,0,0.5); border-radius: 3px; overflow: hidden;">
+                            <div style="width: ${progress}%; height: 100%; background: linear-gradient(90deg, #4fd1c7 0%, #90EE90 100%); border-radius: 3px; transition: width 0.3s; box-shadow: 0 0 8px rgba(79,209,199,0.4);"></div>
                         </div>
+                        ${rewardsHtml}
                     </div>
                 `;
             }).join('');
@@ -1182,9 +1271,12 @@
         // Initialize buildings panel
         updateBuildingsPanel();
 
-        // Mission completion notification
+        // Mission completion notification (Enhanced for card_405)
         missionManager.onMissionComplete((missionResult) => {
             const mission = missionResult.mission;
+
+            // Handle colonization and exploration (card_405)
+            const colonizationResult = colonizationManager.handleMissionCompletion(mission, currentGameYear);
 
             // Apply Mars mission rewards (card_401)
             if (missionResult.rewards) {
@@ -1192,26 +1284,39 @@
 
                 if (rewards.science) {
                     resourceManager.add({ science: rewards.science });
-                    console.log(`🎁 Mars reward: +${rewards.science} science`);
+                    console.log(`🎁 ${mission.destination} reward: +${rewards.science} science`);
                 }
 
                 if (rewards.population) {
                     resourceManager.add({ population: rewards.population });
-                    console.log(`🎁 Mars reward: +${rewards.population} population (Mars colonists)`);
+                    console.log(`🎁 ${mission.destination} reward: +${rewards.population} population`);
                 }
 
                 updateResourcesHUD();
 
-                // Show special notification for Mars completion
-                notificationManager.success('🎉 Mars Colony Established!',
-                    `First human settlement on Mars! +${rewards.science} science, +${rewards.population} colonists. Mars colonization unlocked!`, 10000);
+                // Show special notification for colonization completion
+                if (colonizationResult.colonized) {
+                    notificationManager.success(`🎉 ${mission.destination} Colony Established!`,
+                        `First human settlement on ${mission.destination}! +${rewards.science} science, +${rewards.population} colonists. ${mission.destination} colonization unlocked!`, 10000);
+                } else {
+                    notificationManager.success(`🔍 ${mission.destination} Explored!`,
+                        `Mission to ${mission.destination} completed! +${rewards.science} science. Colony can now be established.`, 8000);
+                }
             } else {
                 // Standard mission completion
-                notificationManager.success('Mission Complete! 🎉',
-                    `Mission to ${mission.destination} has arrived successfully!`, 8000);
+                if (colonizationResult.colonized) {
+                    notificationManager.success(`🏛️ ${mission.destination} Colonized!`,
+                        `${mission.destination} has been successfully colonized! You can now build structures there.`, 8000);
+                } else {
+                    notificationManager.success('Mission Complete! 🎉',
+                        `Mission to ${mission.destination} has arrived successfully! Planet explored.`, 8000);
+                }
             }
 
             updateMissionsDisplay();
+
+            // Log colonization status
+            console.log(`📊 Colonization Status:`, colonizationManager.getStats());
         });
 
         let currentGameYear = 2100;
