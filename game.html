@@ -898,7 +898,9 @@
         const planetsMap = new Map();
         for (const [name, planetData] of renderer.planets.entries()) {
             planetsMap.set(name, planetData.group);
+            console.log(`[TrajectoryInit] Added planet ${name}, group:`, planetData.group);
         }
+        console.log(`[TrajectoryInit] Total planets in map: ${planetsMap.size}`);
 
         trajectoryRenderer = new MissionTrajectoryRenderer(renderer.scene, planetsMap);
 
