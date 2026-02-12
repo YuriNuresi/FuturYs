@@ -183,13 +183,17 @@ class ResourceManager {
      * Calcola crescita popolazione (esponenziale)
      *
      * @param int $currentPop
-     * @param int $growthRate Per anno
+     * @param float $growthRate Growth rate as decimal (e.g., 0.02 for 2%)
      * @param float $years
      * @return int
      */
     private function calculatePopulationGrowth($currentPop, $growthRate, $years) {
-        // Crescita lineare per ora (TODO: implementare esponenziale)
-        return $currentPop + ($growthRate * $years);
+        // Exponential growth: P(t) = P0 × (1 + r)^t
+        // Matches JS implementation: population *= (1 + growthRate * yearFraction)
+        // Using pow() for fractional years
+        $newPopulation = $currentPop * pow(1 + $growthRate, $years);
+
+        return (int)$newPopulation;
     }
 
     /**
