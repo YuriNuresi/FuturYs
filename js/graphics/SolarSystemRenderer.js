@@ -1009,10 +1009,10 @@ export class SolarSystemRenderer {
     }
 
     _setupLighting() {
-        const ambient = new THREE.AmbientLight(0x111122, 0.3);
+        const ambient = new THREE.AmbientLight(0x334466, 0.8);
         this.scene.add(ambient);
 
-        const sunLight = new THREE.PointLight(0xffffff, 2.0, 0, 0.5);
+        const sunLight = new THREE.PointLight(0xffffff, 3.5, 0, 0.5);
         sunLight.position.set(0, 0, 0);
         this.scene.add(sunLight);
     }
@@ -1055,7 +1055,7 @@ export class SolarSystemRenderer {
         const geo = new THREE.SphereGeometry(radius, 32, 32);
         const texture = new THREE.CanvasTexture(textureCanvas);
         texture.colorSpace = THREE.SRGBColorSpace;
-        const mat = new THREE.MeshStandardMaterial({ map: texture, roughness: 0.8, metalness: 0.1 });
+        const mat = new THREE.MeshStandardMaterial({ map: texture, roughness: 0.5, metalness: 0.2 });
         const mesh = new THREE.Mesh(geo, mat);
         mesh.name = name;
 
