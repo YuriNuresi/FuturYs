@@ -46,6 +46,8 @@ try {
 /**
  * GET /api/time.php?session_id=1
  * Ottieni tempo corrente di gioco con calcolo offline
+ *
+ * OPTIMIZATION: No caching (realtime data)
  */
 function handleGetTime($timeManager) {
     $sessionId = $_GET['session_id'] ?? null;
@@ -57,6 +59,10 @@ function handleGetTime($timeManager) {
     $result = $timeManager->updateGameTime($sessionId);
 
     if ($result['success']) {
+        // OPTIMIZATION: No cache for time (always fresh)
+        header('Cache-Control: no-cache, must-revalidate');
+        header('Pragma: no-cache');
+
         sendSuccess([
             'game_year' => $result['game_year'],
             'is_paused' => $result['is_paused'],

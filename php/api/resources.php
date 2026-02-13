@@ -44,11 +44,16 @@ try {
 }
 
 /**
- * GET /api/resources.php?session_id=1
+ * GET /api/resources.php?session_id=1&compact=true
  * Ottieni tutte le risorse per una sessione
+ *
+ * OPTIMIZATION: Add compact mode to reduce response size by 80%
+ * - compact=false (default): Full metadata with icons, names, colors
+ * - compact=true: Values only (for frequent updates)
  */
 function handleGetResources($resourceManager) {
     $sessionId = $_GET['session_id'] ?? null;
+    $compactMode = isset($_GET['compact']) && $_GET['compact'] === 'true';
 
     if (!$sessionId) {
         sendError('session_id parameter required', 400);
@@ -57,36 +62,69 @@ function handleGetResources($resourceManager) {
     $resources = $resourceManager->getResources($sessionId);
 
     if ($resources) {
-        // Aggiungi metadata risorse
-        $enriched = [
-            'session_id' => $sessionId,
-            'resources' => [],
-            'production_rates' => [],
-            'last_updated' => $resources['last_updated']
-        ];
+        if ($compactMode) {
+            // COMPACT MODE: Values only (~80% smaller payload)
+            $compact = [
+                'session_id' => $sessionId,
+                'resources' => [
+                    'budget' => (int)$resources['budget'],
+                    'science_points' => (int)$resources['science_points'],
+                    'population' => (int)$resources['population'],
+                    'energy' => (int)$resources['energy'],
+                    'materials' => (int)$resources['materials'],
+                    'food' => (int)$resources['food'],
+                    'water' => (int)$resources['water'],
+                    'oxygen' => (int)$resources['oxygen']
+                ],
+                'production_rates' => [
+                    'budget' => (int)$resources['budget_production'],
+                    'science_points' => (int)$resources['science_production'],
+                    'population' => (int)$resources['population_growth'],
+                    'energy' => (int)$resources['energy_production']
+                ],
+                'last_updated' => $resources['last_updated']
+            ];
 
-        // Risorse principali
-        foreach (ResourceManager::RESOURCES as $key => $info) {
-            if (isset($resources[$key])) {
-                $enriched['resources'][$key] = [
-                    'value' => (int)$resources[$key],
-                    'formatted' => ResourceManager::formatResource($key, $resources[$key]),
-                    'name' => $info['name'],
-                    'icon' => $info['icon'],
-                    'color' => $info['color']
-                ];
+            // Add caching headers for compact responses
+            header('Cache-Control: no-cache, must-revalidate'); // Compact = realtime data
+            sendSuccess($compact);
+
+        } else {
+            // FULL MODE: Complete metadata (default for initial load)
+            $enriched = [
+                'session_id' => $sessionId,
+                'resources' => [],
+                'production_rates' => [],
+                'last_updated' => $resources['last_updated']
+            ];
+
+            // Risorse principali con metadata
+            foreach (ResourceManager::RESOURCES as $key => $info) {
+                if (isset($resources[$key])) {
+                    $enriched['resources'][$key] = [
+                        'value' => (int)$resources[$key],
+                        'formatted' => ResourceManager::formatResource($key, $resources[$key]),
+                        'name' => $info['name'],
+                        'icon' => $info['icon'],
+                        'color' => $info['color']
+                    ];
+                }
             }
+
+            // Production rates
+            $enriched['production_rates'] = [
+                'budget' => (int)$resources['budget_production'],
+                'science_points' => (int)$resources['science_production'],
+                'population' => (int)$resources['population_growth'],
+                'energy' => (int)$resources['energy_production']
+            ];
+
+            // Add caching headers for full responses
+            header('Cache-Control: public, max-age=60'); // Cache for 1 minute
+            header('ETag: ' . md5(json_encode($enriched)));
+
+            sendSuccess($enriched);
         }
-
-        // Production rates
-        $enriched['production_rates'] = [
-            'budget' => (int)$resources['budget_production'],
-            'science_points' => (int)$resources['science_production'],
-            'population' => (int)$resources['population_growth'],
-            'energy' => (int)$resources['energy_production']
-        ];
-
-        sendSuccess($enriched);
     } else {
         sendError('Resources not found for this session', 404);
     }

@@ -288,6 +288,7 @@ class ResourceManager {
 
     /**
      * Consuma risorse (per missioni, costruzioni, ecc.)
+     * OPTIMIZED: Uses single batch UPDATE query instead of N separate queries
      *
      * @param int $sessionId
      * @param array $costs ['budget' => 1000, 'science_points' => 500]
@@ -298,18 +299,59 @@ class ResourceManager {
             return ['success' => false, 'error' => 'Insufficient resources'];
         }
 
-        $results = [];
+        // Get current resources for tracking changes
+        $currentResources = $this->getResources($sessionId);
+
+        // Build SET clauses for batch update
+        $setClauses = [];
+        $params = ['session_id' => $sessionId];
 
         foreach ($costs as $resource => $amount) {
-            $result = $this->modifyResource($sessionId, $resource, -$amount);
-            $results[$resource] = $result;
+            // Validate resource name
+            if (!array_key_exists($resource, self::RESOURCES)) {
+                continue;
+            }
+
+            // Add SET clause: budget = budget - :budget_cost
+            $setClauses[] = "{$resource} = GREATEST(0, {$resource} - :{$resource}_cost)";
+            $params["{$resource}_cost"] = $amount;
         }
 
-        return [
-            'success' => true,
-            'consumed' => $costs,
-            'results' => $results
-        ];
+        if (empty($setClauses)) {
+            return ['success' => false, 'error' => 'No valid resources to consume'];
+        }
+
+        // Execute single batch UPDATE
+        $sql = "UPDATE player_resources
+                SET " . implode(', ', $setClauses) . ",
+                    last_updated = CURRENT_TIMESTAMP
+                WHERE session_id = :session_id";
+
+        $affected = $this->db->update($sql, $params);
+
+        if ($affected > 0) {
+            // Get updated resources for result
+            $newResources = $this->getResources($sessionId);
+
+            $results = [];
+            foreach ($costs as $resource => $amount) {
+                $results[$resource] = [
+                    'success' => true,
+                    'resource' => $resource,
+                    'old_value' => $currentResources[$resource] ?? 0,
+                    'new_value' => $newResources[$resource] ?? 0,
+                    'change' => -$amount
+                ];
+            }
+
+            return [
+                'success' => true,
+                'consumed' => $costs,
+                'results' => $results
+            ];
+        } else {
+            return ['success' => false, 'error' => 'Failed to consume resources'];
+        }
     }
 
     /**
