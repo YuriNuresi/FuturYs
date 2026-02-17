@@ -137,3 +137,7 @@ assets/temp/
 cache/
 debug.log
 error.log
+
+# Runtime files (modified by server/game at runtime)
+_Ykan_data.json
+plan.md
