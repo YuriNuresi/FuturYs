@@ -62,7 +62,14 @@ function handleGet($saveManager) {
     if ($action === 'info') {
         $result = $saveManager->getSaveInfo($sessionId);
     } else {
-        $result = $saveManager->getGameState($sessionId);
+        // Try loading from save_data snapshot first (contains missions)
+        $loadResult = $saveManager->loadGameState($sessionId);
+        if ($loadResult['success']) {
+            $result = ['success' => true, 'game_state' => $loadResult['game_state']];
+        } else {
+            // No snapshot yet, build from DB tables
+            $result = $saveManager->getGameState($sessionId);
+        }
     }
 
     if ($result['success']) {
@@ -86,10 +93,12 @@ function handlePost($saveManager, $data = null) {
     $action = $data['action'] ?? 'save';
 
     if ($action === 'save' || $action === 'autosave') {
+        $clientState = $data['game_state'] ?? null;
+
         if ($action === 'autosave') {
-            $result = $saveManager->autoSave($data['session_id']);
+            $result = $saveManager->autoSave($data['session_id'], $clientState);
         } else {
-            $result = $saveManager->saveGameState($data['session_id']);
+            $result = $saveManager->saveGameState($data['session_id'], $clientState);
         }
 
         if ($result['success']) {
