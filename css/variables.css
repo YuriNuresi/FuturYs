@@ -1,0 +1,101 @@
+/* FuturY Design System - CSS Custom Properties */
+
+:root {
+    /* === Colors: Space Palette === */
+    --color-space-dark: #0a0e27;
+    --color-space-deeper: #0f1829;
+    --color-space-mid: #1a2744;
+    --color-space-surface: #15233a;
+    --color-bg-body: #000;
+
+    /* === Colors: Accent === */
+    --color-accent: #4fd1c7;
+    --color-accent-hover: #5fe1d7;
+    --color-accent-dim: rgba(79, 209, 199, 0.2);
+    --color-accent-subtle: rgba(79, 209, 199, 0.1);
+    --color-accent-border: rgba(79, 209, 199, 0.3);
+    --color-accent-glow: rgba(79, 209, 199, 0.4);
+    --color-accent-blue: #63b3ed;
+
+    /* === Colors: Status === */
+    --color-success: #90EE90;
+    --color-warning: #FFB84D;
+    --color-error: #FF6B6B;
+    --color-info: #4fd1c7;
+
+    /* === Colors: Text === */
+    --color-text-primary: #fff;
+    --color-text-secondary: #cbd5e0;
+    --color-text-muted: #a0aec0;
+    --color-text-dim: #aaa;
+    --color-text-faint: #888;
+    --color-text-label: #88bbcc;
+    --color-text-description: #99ddee;
+    --color-text-hint: #667;
+
+    /* === Glass / Panel backgrounds === */
+    --glass-bg: rgba(0, 0, 0, 0.7);
+    --glass-bg-heavy: rgba(0, 0, 0, 0.85);
+    --glass-bg-solid: rgba(0, 0, 0, 0.9);
+    --glass-bg-panel: rgba(10, 15, 30, 0.95);
+    --glass-bg-card: rgba(15, 23, 42, 0.8);
+    --glass-bg-header: linear-gradient(135deg, var(--color-space-mid) 0%, var(--color-space-deeper) 100%);
+
+    /* === Typography === */
+    --font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+    --font-size-xs: 10px;
+    --font-size-sm: 11px;
+    --font-size-base: 12px;
+    --font-size-md: 13px;
+    --font-size-lg: 14px;
+    --font-size-xl: 16px;
+    --font-size-2xl: 18px;
+    --font-size-3xl: 20px;
+    --font-size-4xl: 24px;
+
+    /* === Spacing === */
+    --space-xs: 4px;
+    --space-sm: 8px;
+    --space-md: 10px;
+    --space-lg: 12px;
+    --space-xl: 15px;
+    --space-2xl: 20px;
+
+    /* === Border === */
+    --border-accent: 2px solid var(--color-accent);
+    --border-accent-thin: 1px solid var(--color-accent);
+    --border-accent-subtle: 1px solid var(--color-accent-border);
+    --border-radius-sm: 3px;
+    --border-radius-md: 4px;
+    --border-radius-lg: 6px;
+    --border-radius-xl: 8px;
+    --border-radius-2xl: 12px;
+
+    /* === Shadows === */
+    --shadow-panel: 0 8px 32px var(--color-accent-glow);
+    --shadow-card: 0 2px 4px rgba(0, 0, 0, 0.2);
+    --shadow-card-hover: 0 4px 12px var(--color-accent-glow);
+    --shadow-glow: 0 0 15px rgba(79, 209, 199, 0.5);
+
+    /* === Z-Index Layers === */
+    --z-canvas: 0;
+    --z-hud: 100;
+    --z-panel: 150;
+    --z-nav: 150;
+    --z-notification: 200;
+    --z-overlay: 9999;
+    --z-resource-change: 1000;
+
+    /* === Transitions === */
+    --transition-fast: 0.15s ease;
+    --transition-base: 0.2s ease;
+    --transition-slow: 0.3s ease;
+
+    /* === Layout === */
+    --sidebar-width: 300px;
+    --sidebar-collapsed-width: 60px;
+    --navbar-height: 50px;
+    --dock-min-height: 48px;
+    --dock-default-height: 220px;
+    --panel-width: 350px;
+}

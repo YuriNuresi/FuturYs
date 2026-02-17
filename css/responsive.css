@@ -1,5 +1,264 @@
-/* Mobile Responsive */
+/* FuturY - Responsive Design (card_704) */
+
+/* ============================================
+   TABLET: 768px
+   ============================================ */
 @media (max-width: 768px) {
-    #top-bar { flex-direction: column; }
-    .resource { margin: 0.5rem; }
+    :root {
+        --sidebar-width: var(--sidebar-collapsed-width);
+        --navbar-height: 44px;
+    }
+
+    /* Auto-collapse sidebar on tablet */
+    #app-container {
+        grid-template-columns: var(--sidebar-collapsed-width) 1fr;
+    }
+
+    /* Hide text elements in sidebar */
+    .sidebar-left__header h3,
+    .sidebar-left__content .resource-name span:last-child,
+    .sidebar-left__content .resource-rate,
+    .sidebar-left__section-title,
+    .sidebar-left__content .building-desc,
+    .sidebar-left__content .building-costs {
+        display: none;
+    }
+
+    .sidebar-left__content .resource-item {
+        justify-content: center;
+        padding: var(--space-xs) 0;
+    }
+
+    .sidebar-left__content .resource-icon {
+        font-size: var(--font-size-2xl);
+    }
+
+    /* Nav bar: compact */
+    .nav-bar {
+        padding: 0 var(--space-md);
+        gap: var(--space-sm);
+    }
+
+    .nav-bar__brand {
+        margin-right: var(--space-md);
+    }
+
+    .nav-bar__title {
+        font-size: var(--font-size-lg);
+    }
+
+    .nav-bar__year {
+        font-size: var(--font-size-2xl);
+    }
+
+    .nav-bar__date {
+        font-size: var(--font-size-md);
+    }
+
+    .nav-btn {
+        padding: var(--space-sm) var(--space-md);
+        font-size: var(--font-size-base);
+    }
+
+    /* Planet panel smaller */
+    .planet-panel {
+        width: 300px;
+        right: var(--space-md);
+    }
+
+    /* Dock reduced height */
+    .bottom-dock {
+        --dock-default-height: 180px;
+    }
+
+    /* Notifications narrower */
+    #notifications-container {
+        width: 280px;
+        right: var(--space-md);
+    }
+
+    /* HUD */
+    .hud-overlay {
+        left: calc(var(--sidebar-collapsed-width) + var(--space-md));
+    }
+}
+
+/* ============================================
+   MOBILE: 480px
+   ============================================ */
+@media (max-width: 480px) {
+    :root {
+        --navbar-height: 40px;
+    }
+
+    /* Sidebar hamburger: hidden by default */
+    #app-container {
+        grid-template-areas:
+            "nav     nav"
+            "viewport viewport"
+            "dock     dock";
+        grid-template-columns: 1fr;
+        grid-template-rows: var(--navbar-height) 1fr auto;
+    }
+
+    .sidebar-left {
+        position: fixed;
+        top: var(--navbar-height);
+        left: 0;
+        width: 280px;
+        height: calc(100vh - var(--navbar-height));
+        transform: translateX(-100%);
+        transition: transform var(--transition-slow);
+        z-index: calc(var(--z-panel) + 10);
+    }
+
+    .sidebar-left.open {
+        transform: translateX(0);
+    }
+
+    /* Sidebar overlay backdrop */
+    .sidebar-backdrop {
+        display: none;
+        position: fixed;
+        inset: 0;
+        top: var(--navbar-height);
+        background: rgba(0, 0, 0, 0.5);
+        z-index: calc(var(--z-panel) + 5);
+    }
+
+    .sidebar-left.open ~ .sidebar-backdrop {
+        display: block;
+    }
+
+    /* Hamburger button visible */
+    .hamburger-btn {
+        display: flex;
+    }
+
+    /* Nav bar: very compact */
+    .nav-bar {
+        padding: 0 var(--space-sm);
+        gap: var(--space-xs);
+    }
+
+    .nav-bar__brand {
+        margin-right: var(--space-sm);
+    }
+
+    .nav-bar__title {
+        font-size: var(--font-size-md);
+    }
+
+    .nav-bar__year {
+        font-size: var(--font-size-xl);
+    }
+
+    .nav-bar__date {
+        display: none;
+    }
+
+    /* Hide nav tab labels on mobile, show only icons */
+    .nav-btn {
+        padding: var(--space-sm);
+        font-size: var(--font-size-lg);
+    }
+
+    .nav-btn .nav-btn__label {
+        display: none;
+    }
+
+    /* Planet panel fullscreen */
+    .planet-panel {
+        position: fixed;
+        top: var(--navbar-height);
+        right: 0;
+        left: 0;
+        width: 100%;
+        max-height: calc(100vh - var(--navbar-height));
+        transform: none;
+        border-radius: 0;
+        z-index: calc(var(--z-notification) + 10);
+    }
+
+    .planet-panel.hidden {
+        transform: translateY(100%);
+    }
+
+    /* Dock full-width */
+    .bottom-dock {
+        max-height: 60vh;
+    }
+
+    /* Notifications full-width */
+    #notifications-container {
+        left: var(--space-sm);
+        right: var(--space-sm);
+        width: auto;
+    }
+
+    /* HUD hidden on mobile (info in nav-bar) */
+    .hud-overlay {
+        display: none;
+    }
+
+    /* Countdown smaller */
+    .countdown-display {
+        font-size: 80px;
+    }
+
+    .countdown-display.launch {
+        font-size: 50px;
+    }
+}
+
+/* ============================================
+   HAMBURGER BUTTON (hidden on desktop)
+   ============================================ */
+.hamburger-btn {
+    display: none;
+    background: none;
+    border: none;
+    color: var(--color-accent);
+    font-size: var(--font-size-3xl);
+    padding: var(--space-xs);
+    cursor: pointer;
+    align-items: center;
+    justify-content: center;
+}
+
+.hamburger-btn:hover {
+    color: var(--color-text-primary);
+}
+
+/* ============================================
+   TOUCH: Swipe support (JS-enhanced)
+   ============================================ */
+@media (pointer: coarse) {
+    .sidebar-left {
+        touch-action: pan-y;
+    }
+
+    .dock__resize-handle {
+        height: 12px;
+    }
+
+    .nav-btn {
+        min-height: 44px;
+        min-width: 44px;
+    }
+
+    .close-btn {
+        min-width: 44px;
+        min-height: 44px;
+    }
+}
+
+/* ============================================
+   LARGE SCREENS: 1440px+
+   ============================================ */
+@media (min-width: 1440px) {
+    :root {
+        --sidebar-width: 340px;
+        --panel-width: 400px;
+    }
 }

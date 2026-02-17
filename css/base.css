@@ -1,0 +1,217 @@
+/* FuturY Design System - Base Styles & Utilities */
+
+/* === Reset === */
+*, *::before, *::after {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+/* === Base === */
+body {
+    font-family: var(--font-family);
+    background: var(--color-bg-body);
+    color: var(--color-text-primary);
+    overflow: hidden;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+}
+
+button {
+    font-family: inherit;
+    cursor: pointer;
+}
+
+/* === Scrollbar === */
+::-webkit-scrollbar {
+    width: 6px;
+}
+
+::-webkit-scrollbar-track {
+    background: rgba(0, 0, 0, 0.2);
+}
+
+::-webkit-scrollbar-thumb {
+    background: var(--color-accent);
+    border-radius: var(--border-radius-sm);
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: var(--color-accent-hover);
+}
+
+/* Firefox scrollbar */
+* {
+    scrollbar-width: thin;
+    scrollbar-color: var(--color-accent) rgba(0, 0, 0, 0.2);
+}
+
+/* === Utility: Visibility === */
+.hidden {
+    opacity: 0;
+    pointer-events: none;
+}
+
+.display-none {
+    display: none !important;
+}
+
+/* === Utility: Layout === */
+.flex-center {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.flex-between {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.flex-col {
+    display: flex;
+    flex-direction: column;
+}
+
+/* === Glass Panel === */
+.glass-panel {
+    background: var(--glass-bg);
+    border: var(--border-accent);
+    border-radius: var(--border-radius-xl);
+    padding: var(--space-xl);
+}
+
+.glass-panel-heavy {
+    background: var(--glass-bg-heavy);
+    border: var(--border-accent);
+    border-radius: var(--border-radius-xl);
+    padding: var(--space-xl);
+}
+
+/* === Animations === */
+@keyframes floatUp {
+    0% {
+        opacity: 1;
+        transform: translateY(0);
+    }
+    100% {
+        opacity: 0;
+        transform: translateY(-40px);
+    }
+}
+
+@keyframes slideIn {
+    from {
+        transform: translateX(400px);
+        opacity: 0;
+    }
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
+
+@keyframes slideInLeft {
+    from {
+        transform: translateX(-100%);
+        opacity: 0;
+    }
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+@keyframes countdown-pulse {
+    0%, 100% { transform: scale(1); opacity: 0.9; }
+    50% { transform: scale(1.15); opacity: 1; }
+}
+
+@keyframes launch-flash {
+    0% { transform: scale(1); opacity: 1; color: var(--color-accent); }
+    30% { transform: scale(1.4); opacity: 1; color: #ff6b35; }
+    60% { transform: scale(1.8); opacity: 0.8; color: #ffd700; }
+    100% { transform: scale(2.5); opacity: 0; }
+}
+
+/* === Common Component: Button === */
+.btn-accent {
+    background: var(--color-accent-dim);
+    border: 1px solid var(--color-accent);
+    color: var(--color-accent);
+    padding: var(--space-sm) var(--space-xl);
+    border-radius: var(--border-radius-md);
+    font-size: var(--font-size-md);
+    transition: all var(--transition-base);
+}
+
+.btn-accent:hover {
+    background: var(--color-accent-glow);
+    transform: translateY(-2px);
+}
+
+.btn-accent.active {
+    background: var(--color-accent);
+    color: #000;
+}
+
+.btn-primary {
+    width: 100%;
+    padding: var(--space-sm);
+    background: linear-gradient(135deg, var(--color-accent), var(--color-accent-blue));
+    border: none;
+    border-radius: var(--border-radius-md);
+    color: white;
+    font-weight: bold;
+    transition: all var(--transition-base);
+}
+
+.btn-primary:hover:not(:disabled) {
+    transform: translateY(-1px);
+    box-shadow: var(--shadow-card-hover);
+}
+
+.btn-primary:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    background: #4a5568;
+}
+
+/* === Common Component: Progress Bar === */
+.progress-bar {
+    width: 100%;
+    height: 6px;
+    background: rgba(0, 0, 0, 0.5);
+    border-radius: var(--border-radius-sm);
+    overflow: hidden;
+}
+
+.progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--color-accent), var(--color-accent-blue));
+    transition: width var(--transition-slow);
+}
+
+/* === Common Component: Resource Change Floater === */
+.resource-change {
+    position: fixed;
+    font-size: var(--font-size-xl);
+    font-weight: bold;
+    pointer-events: none;
+    z-index: var(--z-resource-change);
+    animation: floatUp 1.5s ease-out forwards;
+}
+
+.resource-change.positive {
+    color: var(--color-success);
+}
+
+.resource-change.negative {
+    color: var(--color-error);
+}
