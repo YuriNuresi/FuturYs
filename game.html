@@ -713,11 +713,35 @@
 
         loadNationData(selectedNationCode);
 
-        // Save manager
+        // Game time (mutable - updated if save is loaded)
+        let startYear = 2100;
+        let startTime = performance.now();
+
+        // Save manager - load saved state before game loop starts
         saveManager.init(1);
         saveManager.loadGame().then(gameState => {
-            if (gameState && gameState.session) {
-                saveManager.applyGameState(gameState, timeManager, resourceManager, missionManager);
+            if (gameState && gameState.session && gameState.session.current_game_year > 2100) {
+                const savedYear = gameState.session.current_game_year;
+                // Adjust startTime so the game loop calculates the correct year
+                // gameYear = startYear + elapsedSeconds / SECONDS_PER_GAME_YEAR
+                // We want gameYear = savedYear at the current moment, so:
+                // savedYear = startYear + (now - startTime) / SECONDS_PER_GAME_YEAR
+                // startTime = now - (savedYear - startYear) * SECONDS_PER_GAME_YEAR * 1000
+                startTime = performance.now() - (savedYear - startYear) * 86400 * 1000;
+                console.log(`✅ Restored game year: ${savedYear.toFixed(2)}`);
+
+                // Restore missions
+                if (gameState.missions && gameState.missions.length > 0) {
+                    missionManager.init(gameState.missions);
+                    console.log(`✅ Restored ${gameState.missions.length} missions`);
+                }
+
+                // Restore resources from saved state
+                if (gameState.resources) {
+                    resourceManager.loadResources(gameState.resources);
+                    updateResourcesHUD();
+                    console.log('✅ Restored resources from save');
+                }
             }
         }).catch(err => {
             console.log('🆕 Starting new game (load error):', err.message);
@@ -727,10 +751,6 @@
         saveManager.onSave((data) => {
             console.log('💾 Game saved at', data.saved_at);
         });
-
-        // Game time
-        const startYear = 2100;
-        const startTime = performance.now();
         const yearEl = document.getElementById('game-year');
         const dateEl = document.getElementById('game-date');
         const resourcesList = document.getElementById('resources-list');

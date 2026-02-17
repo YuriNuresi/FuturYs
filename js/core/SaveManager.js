@@ -59,7 +59,7 @@ export class SaveManager {
                 current_game_year: timeManager.getCurrentYearPrecise(),
                 is_paused: timeManager.isPaused
             },
-            resources: resourceManager.getState(),
+            resources: resourceManager.getAll(),
             missions: missionManager.getAllMissions().map(m => ({
                 id: m.id,
                 name: m.name,
@@ -184,7 +184,7 @@ export class SaveManager {
 
         // Restore resources
         if (gameState.resources) {
-            resourceManager.setState(gameState.resources);
+            resourceManager.loadResources(gameState.resources);
         }
 
         // Restore missions

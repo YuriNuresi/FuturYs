@@ -150,8 +150,40 @@ class SaveManager {
 
     /**
      * Save game state to database
+     * @param int $sessionId
+     * @param array|null $clientState - game state sent from the browser
      */
-    public function saveGameState($sessionId) {
+    public function saveGameState($sessionId, $clientState = null) {
+        // If client sent game state, update DB tables first
+        if ($clientState) {
+            // Update current game year
+            if (isset($clientState['session']['current_game_year'])) {
+                $this->db->update(
+                    'UPDATE game_sessions SET current_game_year = :year WHERE id = :id',
+                    ['year' => $clientState['session']['current_game_year'], 'id' => $sessionId]
+                );
+            }
+
+            // Update resources from client
+            if (isset($clientState['resources'])) {
+                $r = $clientState['resources'];
+                $this->db->update(
+                    'UPDATE player_resources SET budget = :budget, science_points = :science,
+                     population = :pop, energy = :energy, materials = :mat,
+                     food = :food, water = :water, oxygen = :oxy
+                     WHERE session_id = :sid',
+                    [
+                        'budget' => $r['budget'] ?? 0, 'science' => $r['science'] ?? 0,
+                        'pop' => $r['population'] ?? 0, 'energy' => $r['energy'] ?? 0,
+                        'mat' => $r['materials'] ?? 0, 'food' => $r['food'] ?? 0,
+                        'water' => $r['water'] ?? 0, 'oxy' => $r['oxygen'] ?? 0,
+                        'sid' => $sessionId
+                    ]
+                );
+            }
+        }
+
+        // Read full state from DB (now updated) and save as JSON snapshot
         $stateResult = $this->getGameState($sessionId);
 
         if (!$stateResult['success']) {
@@ -159,6 +191,11 @@ class SaveManager {
         }
 
         $gameState = $stateResult['game_state'];
+
+        // Merge client missions into the snapshot (missions live client-side)
+        if ($clientState && isset($clientState['missions'])) {
+            $gameState['missions'] = $clientState['missions'];
+        }
 
         // Update save_data in game_sessions
         $affected = $this->db->update(
@@ -276,8 +313,8 @@ class SaveManager {
     /**
      * Auto-save game
      */
-    public function autoSave($sessionId) {
-        $result = $this->saveGameState($sessionId);
+    public function autoSave($sessionId, $clientState = null) {
+        $result = $this->saveGameState($sessionId, $clientState);
 
         if ($result['success']) {
             // Log autosave
