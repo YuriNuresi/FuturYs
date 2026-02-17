@@ -105,11 +105,16 @@
 .hud-overlay {
     position: fixed;
     top: calc(var(--navbar-height) + var(--space-md));
-    left: var(--space-2xl);
+    left: calc(var(--sidebar-width) + var(--space-2xl));
     color: var(--color-accent);
     font-size: var(--font-size-lg);
     z-index: var(--z-hud);
     pointer-events: none;
+    transition: left var(--transition-slow);
+}
+
+.sidebar-collapsed .hud-overlay {
+    left: calc(var(--sidebar-collapsed-width) + var(--space-2xl));
 }
 
 .hud-overlay h2 {
@@ -221,6 +226,7 @@
     grid-area: viewport;
     position: relative;
     overflow: hidden;
+    pointer-events: none; /* Let mouse events pass through to canvas for OrbitControls */
 }
 
 /* === Bottom Dock === */
