@@ -1,21 +1,350 @@
-/* Game UI Elements */
-#hud {
+/* FuturY - Game Layout (card_702) */
+
+/* === App Container: CSS Grid Layout === */
+#app-container {
+    display: grid;
+    grid-template-areas:
+        "nav     nav     nav"
+        "sidebar viewport viewport"
+        "sidebar dock     dock";
+    grid-template-columns: var(--sidebar-width) 1fr;
+    grid-template-rows: var(--navbar-height) 1fr auto;
+    width: 100vw;
+    height: 100vh;
+    overflow: hidden;
+}
+
+#app-container.sidebar-collapsed {
+    grid-template-columns: var(--sidebar-collapsed-width) 1fr;
+}
+
+/* === Canvas === */
+#solar-system-canvas {
     position: fixed;
     top: 0;
     left: 0;
-    width: 100%;
+    width: 100vw;
+    height: 100vh;
+    display: block;
+    z-index: var(--z-canvas);
+}
+
+/* === Nav Bar (top) === */
+.nav-bar {
+    grid-area: nav;
+    display: flex;
+    align-items: center;
+    gap: var(--space-md);
+    padding: 0 var(--space-xl);
+    background: var(--glass-bg-solid);
+    border-bottom: 1px solid var(--color-accent-border);
+    z-index: var(--z-nav);
+    position: relative;
+}
+
+.nav-bar__brand {
+    display: flex;
+    align-items: center;
+    gap: var(--space-sm);
+    margin-right: var(--space-2xl);
+}
+
+.nav-bar__title {
+    font-size: var(--font-size-2xl);
+    font-weight: 600;
+    color: var(--color-accent);
+}
+
+.nav-bar__time {
+    display: flex;
+    align-items: baseline;
+    gap: var(--space-sm);
+}
+
+.nav-bar__year {
+    font-size: var(--font-size-4xl);
+    font-weight: bold;
+    color: var(--color-text-primary);
+}
+
+.nav-bar__date {
+    font-size: var(--font-size-xl);
+    color: var(--color-accent);
+}
+
+.nav-bar__tabs {
+    display: flex;
+    gap: var(--space-sm);
+    margin-left: auto;
+}
+
+.nav-btn {
+    background: var(--color-accent-dim);
+    border: 1px solid var(--color-accent);
+    color: var(--color-accent);
+    padding: var(--space-sm) var(--space-xl);
+    border-radius: var(--border-radius-md);
+    font-size: var(--font-size-md);
+    cursor: pointer;
+    transition: all var(--transition-base);
+    white-space: nowrap;
+}
+
+.nav-btn:hover {
+    background: var(--color-accent-glow);
+    transform: translateY(-1px);
+}
+
+.nav-btn.active {
+    background: var(--color-accent);
+    color: #000;
+    font-weight: 600;
+}
+
+/* === HUD Overlay (on top of canvas) === */
+.hud-overlay {
+    position: fixed;
+    top: calc(var(--navbar-height) + var(--space-md));
+    left: var(--space-2xl);
+    color: var(--color-accent);
+    font-size: var(--font-size-lg);
+    z-index: var(--z-hud);
     pointer-events: none;
 }
 
-#top-bar {
-    display: flex;
-    justify-content: space-between;
-    padding: 1rem;
-    background: rgba(10, 14, 39, 0.9);
-    pointer-events: auto;
+.hud-overlay h2 {
+    display: none; /* Title moved to nav-bar */
 }
 
-.resource {
-    display: inline-block;
-    margin: 0 1rem;
+.hud-overlay .year {
+    display: none; /* Year moved to nav-bar */
+}
+
+.hud-overlay .controls-hint {
+    color: var(--color-text-hint);
+    font-size: var(--font-size-base);
+    line-height: 1.6;
+}
+
+/* === Sidebar Left === */
+.sidebar-left {
+    grid-area: sidebar;
+    background: var(--glass-bg-heavy);
+    border-right: 1px solid var(--color-accent-border);
+    z-index: var(--z-panel);
+    position: relative;
+    overflow-y: auto;
+    overflow-x: hidden;
+    transition: width var(--transition-slow);
+    display: flex;
+    flex-direction: column;
+}
+
+.sidebar-left__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: var(--space-lg) var(--space-xl);
+    border-bottom: 1px solid var(--color-accent-border);
+    min-height: 44px;
+}
+
+.sidebar-left__header h3 {
+    color: var(--color-accent);
+    font-size: var(--font-size-xl);
+    white-space: nowrap;
+    overflow: hidden;
+}
+
+.sidebar-toggle {
+    background: none;
+    border: none;
+    color: var(--color-accent);
+    font-size: var(--font-size-xl);
+    padding: var(--space-xs);
+    transition: transform var(--transition-base);
+    flex-shrink: 0;
+}
+
+.sidebar-toggle:hover {
+    color: var(--color-text-primary);
+}
+
+.sidebar-collapsed .sidebar-toggle {
+    transform: rotate(180deg);
+}
+
+.sidebar-left__content {
+    flex: 1;
+    padding: var(--space-lg);
+    overflow-y: auto;
+}
+
+.sidebar-left__section {
+    margin-bottom: var(--space-2xl);
+}
+
+.sidebar-left__section-title {
+    color: var(--color-accent);
+    font-size: var(--font-size-md);
+    font-weight: 600;
+    margin-bottom: var(--space-sm);
+    padding-bottom: var(--space-xs);
+    border-bottom: 1px solid var(--color-accent-border);
+}
+
+/* === Sidebar collapsed state === */
+.sidebar-collapsed .sidebar-left {
+    width: var(--sidebar-collapsed-width);
+}
+
+.sidebar-collapsed .sidebar-left__header h3,
+.sidebar-collapsed .sidebar-left__content .resource-name span:last-child,
+.sidebar-collapsed .sidebar-left__content .resource-rate,
+.sidebar-collapsed .sidebar-left__section-title,
+.sidebar-collapsed .sidebar-left__content .building-desc,
+.sidebar-collapsed .sidebar-left__content .building-costs {
+    display: none;
+}
+
+.sidebar-collapsed .sidebar-left__content .resource-item {
+    justify-content: center;
+    padding: var(--space-xs) 0;
+}
+
+.sidebar-collapsed .sidebar-left__content .resource-icon {
+    font-size: var(--font-size-2xl);
+}
+
+/* === Main Viewport (center) === */
+.main-viewport {
+    grid-area: viewport;
+    position: relative;
+    overflow: hidden;
+}
+
+/* === Bottom Dock === */
+.bottom-dock {
+    grid-area: dock;
+    background: var(--glass-bg-heavy);
+    border-top: 1px solid var(--color-accent-border);
+    z-index: var(--z-panel);
+    display: flex;
+    flex-direction: column;
+    min-height: var(--dock-min-height);
+    max-height: 50vh;
+    position: relative;
+    transition: height var(--transition-slow);
+}
+
+.bottom-dock.minimized {
+    height: var(--dock-min-height) !important;
+    min-height: var(--dock-min-height);
+}
+
+.bottom-dock.minimized .dock__content {
+    display: none;
+}
+
+/* Dock resize handle */
+.dock__resize-handle {
+    height: 6px;
+    cursor: ns-resize;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.dock__resize-handle::after {
+    content: '';
+    width: 40px;
+    height: 3px;
+    background: var(--color-accent-border);
+    border-radius: 2px;
+}
+
+.dock__resize-handle:hover::after {
+    background: var(--color-accent);
+}
+
+/* Dock tab bar */
+.dock__tabs {
+    display: flex;
+    gap: 2px;
+    padding: 0 var(--space-lg);
+    border-bottom: 1px solid var(--color-accent-border);
+    flex-shrink: 0;
+}
+
+.dock__tab {
+    padding: var(--space-sm) var(--space-xl);
+    background: transparent;
+    border: none;
+    border-bottom: 2px solid transparent;
+    color: var(--color-text-dim);
+    font-size: var(--font-size-md);
+    cursor: pointer;
+    transition: all var(--transition-fast);
+    white-space: nowrap;
+}
+
+.dock__tab:hover {
+    color: var(--color-accent);
+    background: var(--color-accent-subtle);
+}
+
+.dock__tab.active {
+    color: var(--color-accent);
+    border-bottom-color: var(--color-accent);
+    font-weight: 600;
+}
+
+/* Dock content area */
+.dock__content {
+    flex: 1;
+    overflow-y: auto;
+    padding: var(--space-lg);
+}
+
+.dock__panel {
+    display: none;
+    height: 100%;
+}
+
+.dock__panel.active {
+    display: block;
+}
+
+/* === Launch Sequence Overlay === */
+#launch-sequence-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: rgba(0, 0, 0, 0.9);
+    display: none;
+    justify-content: center;
+    align-items: center;
+    z-index: var(--z-overlay);
+    pointer-events: none;
+}
+
+#launch-sequence-overlay.active {
+    display: flex;
+}
+
+.countdown-display {
+    font-size: 120px;
+    font-weight: bold;
+    color: var(--color-accent);
+    text-shadow: 0 0 40px rgba(79, 209, 199, 0.8),
+                 0 0 80px rgba(79, 209, 199, 0.4);
+    animation: countdown-pulse 0.8s ease-in-out;
+}
+
+.countdown-display.launch {
+    font-size: 80px;
+    animation: launch-flash 1.2s ease-out;
 }

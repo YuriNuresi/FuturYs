@@ -12,410 +12,196 @@
         }
     }
     </script>
-    <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { background: #000; overflow: hidden; font-family: 'Segoe UI', sans-serif; }
-        #solar-system-canvas {
-            width: 100vw;
-            height: 100vh;
-            display: block;
-        }
-        #hud {
-            position: fixed;
-            top: 20px;
-            left: 20px;
-            color: #4fd1c7;
-            font-size: 14px;
-            z-index: 100;
-            pointer-events: none;
-        }
-        #hud h2 { font-size: 18px; margin-bottom: 8px; }
-        #hud .year { font-size: 24px; color: #fff; margin-bottom: 12px; }
-        #hud .controls-hint {
-            color: #667;
-            font-size: 12px;
-            line-height: 1.6;
-        }
-
-        /* Launch Sequence Overlay (card_403) */
-        #launch-sequence-overlay {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100vw;
-            height: 100vh;
-            background: rgba(0, 0, 0, 0.9);
-            display: none;
-            justify-content: center;
-            align-items: center;
-            z-index: 9999;
-            pointer-events: none;
-        }
-        #launch-sequence-overlay.active {
-            display: flex;
-        }
-        .countdown-display {
-            font-size: 120px;
-            font-weight: bold;
-            color: #4fd1c7;
-            text-shadow: 0 0 40px rgba(79, 209, 199, 0.8),
-                         0 0 80px rgba(79, 209, 199, 0.4);
-            animation: countdown-pulse 0.8s ease-in-out;
-        }
-        .countdown-display.launch {
-            font-size: 80px;
-            animation: launch-flash 1.2s ease-out;
-        }
-        @keyframes countdown-pulse {
-            0%, 100% { transform: scale(1); opacity: 0.9; }
-            50% { transform: scale(1.15); opacity: 1; }
-        }
-        @keyframes launch-flash {
-            0% { transform: scale(1); opacity: 1; color: #4fd1c7; }
-            30% { transform: scale(1.4); opacity: 1; color: #ff6b35; }
-            60% { transform: scale(1.8); opacity: 0.8; color: #ffd700; }
-            100% { transform: scale(2.5); opacity: 0; }
-        }
-
-        /* Resource Display */
-        #resources-display {
-            position: fixed;
-            top: 20px;
-            right: 20px;
-            background: rgba(0, 0, 0, 0.7);
-            border: 2px solid #4fd1c7;
-            border-radius: 8px;
-            padding: 15px;
-            min-width: 280px;
-            z-index: 100;
-            pointer-events: none;
-        }
-        #resources-display h3 {
-            color: #4fd1c7;
-            font-size: 16px;
-            margin: 0 0 12px 0;
-            text-align: center;
-        }
-        .resource-item {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 6px 0;
-            border-bottom: 1px solid rgba(79, 209, 199, 0.2);
-        }
-        .resource-item:last-child {
-            border-bottom: none;
-        }
-        .resource-name {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            color: #aaa;
-            font-size: 13px;
-        }
-        .resource-icon {
-            font-size: 16px;
-        }
-        .resource-value {
-            display: flex;
-            flex-direction: column;
-            align-items: flex-end;
-            gap: 2px;
-        }
-        .resource-amount {
-            color: #fff;
-            font-weight: bold;
-            font-size: 14px;
-        }
-        .resource-rate {
-            color: #4fd1c7;
-            font-size: 11px;
-        }
-        .resource-rate.positive {
-            color: #90EE90;
-        }
-        .resource-rate.negative {
-            color: #FF6B6B;
-        }
-        .resource-change {
-            position: fixed;
-            font-size: 16px;
-            font-weight: bold;
-            pointer-events: none;
-            z-index: 1000;
-            animation: floatUp 1.5s ease-out forwards;
-        }
-        .resource-change.positive {
-            color: #90EE90;
-        }
-        .resource-change.negative {
-            color: #FF6B6B;
-        }
-        @keyframes floatUp {
-            0% {
-                opacity: 1;
-                transform: translateY(0);
-            }
-            100% {
-                opacity: 0;
-                transform: translateY(-40px);
-            }
-        }
-        /* Navigation Menu */
-        #nav-menu {
-            position: fixed;
-            top: 20px;
-            left: 50%;
-            transform: translateX(-50%);
-            display: flex;
-            gap: 10px;
-            background: rgba(0,0,0,0.8);
-            border: 2px solid #4fd1c7;
-            border-radius: 8px;
-            padding: 10px;
-            z-index: 150;
-        }
-        .nav-btn {
-            background: rgba(79,209,199,0.2);
-            border: 1px solid #4fd1c7;
-            color: #4fd1c7;
-            padding: 8px 16px;
-            border-radius: 4px;
-            cursor: pointer;
-            font-size: 13px;
-            transition: all 0.2s;
-        }
-        .nav-btn:hover {
-            background: rgba(79,209,199,0.4);
-            transform: translateY(-2px);
-        }
-        .nav-btn.active {
-            background: #4fd1c7;
-            color: #000;
-        }
-        /* Notification System */
-        #notifications-container {
-            position: fixed;
-            top: 80px;
-            right: 20px;
-            width: 320px;
-            z-index: 200;
-            pointer-events: none;
-        }
-        .notification {
-            background: rgba(0,0,0,0.9);
-            border-left: 4px solid #4fd1c7;
-            border-radius: 4px;
-            padding: 12px 16px;
-            margin-bottom: 10px;
-            box-shadow: 0 4px 8px rgba(0,0,0,0.3);
-            animation: slideIn 0.3s ease-out;
-            pointer-events: all;
-        }
-        .notification.success { border-left-color: #90EE90; }
-        .notification.warning { border-left-color: #FFB84D; }
-        .notification.error { border-left-color: #FF6B6B; }
-        .notification-title {
-            color: #4fd1c7;
-            font-weight: bold;
-            font-size: 13px;
-            margin-bottom: 4px;
-        }
-        .notification-message {
-            color: #aaa;
-            font-size: 12px;
-        }
-        @keyframes slideIn {
-            from {
-                transform: translateX(400px);
-                opacity: 0;
-            }
-            to {
-                transform: translateX(0);
-                opacity: 1;
-            }
-        }
-        /* Responsive Design */
-        @media (max-width: 768px) {
-            #resources-display {
-                top: auto;
-                bottom: 220px;
-                right: 10px;
-                min-width: 240px;
-                font-size: 12px;
-            }
-            #missions-panel {
-                bottom: 10px;
-                right: 10px;
-                min-width: 240px;
-                max-height: 150px;
-            }
-            #nav-menu {
-                flex-direction: column;
-                gap: 5px;
-                padding: 8px;
-                top: 10px;
-            }
-            .nav-btn {
-                padding: 6px 12px;
-                font-size: 11px;
-            }
-        }
-        @media (max-width: 480px) {
-            #hud {
-                font-size: 12px;
-            }
-            #hud .year {
-                font-size: 18px;
-            }
-            #resources-display {
-                min-width: 200px;
-            }
-        }
-        /* Planet Information Panel */
-        .planet-panel {
-            position: fixed;
-            top: 50%;
-            right: 20px;
-            transform: translateY(-50%);
-            width: 350px;
-            max-height: 80vh;
-            background: rgba(10, 15, 30, 0.95);
-            border: 1px solid #4fd1c7;
-            border-radius: 12px;
-            padding: 0;
-            box-shadow: 0 8px 32px rgba(79, 209, 199, 0.3);
-            z-index: 200;
-            transition: all 0.3s ease;
-            overflow: hidden;
-        }
-        .planet-panel.hidden {
-            opacity: 0;
-            pointer-events: none;
-            transform: translateY(-50%) translateX(400px);
-        }
-        .panel-header {
-            background: linear-gradient(135deg, #1a2744 0%, #0f1829 100%);
-            padding: 16px 20px;
-            border-bottom: 1px solid #4fd1c7;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-        .panel-header h3 {
-            margin: 0;
-            font-size: 20px;
-            color: #4fd1c7;
-            text-transform: capitalize;
-        }
-        .close-btn {
-            background: none;
-            border: none;
-            color: #4fd1c7;
-            font-size: 28px;
-            cursor: pointer;
-            padding: 0;
-            width: 30px;
-            height: 30px;
-            line-height: 1;
-            transition: all 0.2s;
-        }
-        .close-btn:hover {
-            color: #fff;
-            transform: rotate(90deg);
-        }
-        .panel-content {
-            padding: 20px;
-            max-height: calc(80vh - 70px);
-            overflow-y: auto;
-        }
-        .description {
-            color: #99ddee;
-            font-size: 14px;
-            line-height: 1.6;
-            margin-bottom: 20px;
-            font-style: italic;
-        }
-        .info-grid {
-            display: grid;
-            grid-template-columns: 1fr;
-            gap: 12px;
-        }
-        .info-item {
-            display: flex;
-            justify-content: space-between;
-            padding: 10px 12px;
-            background: rgba(79, 209, 199, 0.05);
-            border-left: 3px solid #4fd1c7;
-            border-radius: 4px;
-        }
-        .info-item .label {
-            color: #88bbcc;
-            font-size: 13px;
-            font-weight: 500;
-        }
-        .info-item .value {
-            color: #fff;
-            font-size: 13px;
-            font-weight: 600;
-            text-align: right;
-        }
-        /* Scrollbar styling */
-        .panel-content::-webkit-scrollbar {
-            width: 6px;
-        }
-        .panel-content::-webkit-scrollbar-track {
-            background: rgba(0, 0, 0, 0.2);
-        }
-        .panel-content::-webkit-scrollbar-thumb {
-            background: #4fd1c7;
-            border-radius: 3px;
-        }
-        .panel-content::-webkit-scrollbar-thumb:hover {
-            background: #5fe1d7;
-        }
-    </style>
+    <!-- CSS Design System -->
+    <link rel="stylesheet" href="css/variables.css">
+    <link rel="stylesheet" href="css/base.css">
+    <link rel="stylesheet" href="css/game.css">
+    <link rel="stylesheet" href="css/panels.css">
+    <link rel="stylesheet" href="css/responsive.css">
 </head>
 <body>
+    <!-- 3D Canvas (behind everything) -->
     <canvas id="solar-system-canvas"></canvas>
 
-    <!-- Launch Sequence Overlay (card_403) -->
+    <!-- Launch Sequence Overlay -->
     <div id="launch-sequence-overlay">
         <div id="countdown-text" class="countdown-display"></div>
-    </div>
-
-    <!-- Navigation Menu -->
-    <div id="nav-menu">
-        <button class="nav-btn active" data-view="solar-system">🌌 Solar System</button>
-        <button class="nav-btn" data-view="missions">🚀 Missions</button>
-        <button class="nav-btn" data-view="buildings">🏗️ Buildings</button>
-        <button class="nav-btn" data-view="research">🔬 Research</button>
-        <button class="nav-btn" data-view="economy">💰 Economy</button>
     </div>
 
     <!-- Notifications Container -->
     <div id="notifications-container"></div>
 
-    <div id="hud">
-        <h2>FuturY</h2>
-        <div class="year">Anno <span id="game-year">2100</span> <span id="game-date" style="color: #4fd1c7; font-size: 16px;">(gen-01 0:00)</span></div>
-        <div class="controls-hint">
-            Click + trascina: ruota<br>
-            Scroll: zoom<br>
-            Click destro + trascina: pan<br>
-            Click su pianeta: info
+    <!-- App Container: Grid Layout -->
+    <div id="app-container">
+
+        <!-- === NAV BAR (top) === -->
+        <nav class="nav-bar">
+            <button class="hamburger-btn" id="hamburger-btn" aria-label="Toggle sidebar">&#9776;</button>
+
+            <div class="nav-bar__brand">
+                <span class="nav-bar__title">FuturY</span>
+            </div>
+
+            <div class="nav-bar__time">
+                <span class="nav-bar__year" id="game-year">2100</span>
+                <span class="nav-bar__date" id="game-date">(gen-01 0:00)</span>
+            </div>
+
+            <div class="nav-bar__tabs">
+                <button class="nav-btn active" data-view="solar-system">
+                    <span class="nav-btn__icon">🌌</span>
+                    <span class="nav-btn__label">Solar System</span>
+                </button>
+                <button class="nav-btn" data-view="missions">
+                    <span class="nav-btn__icon">🚀</span>
+                    <span class="nav-btn__label">Missions</span>
+                </button>
+                <button class="nav-btn" data-view="buildings">
+                    <span class="nav-btn__icon">🏗️</span>
+                    <span class="nav-btn__label">Buildings</span>
+                </button>
+                <button class="nav-btn" data-view="research">
+                    <span class="nav-btn__icon">🔬</span>
+                    <span class="nav-btn__label">Research</span>
+                </button>
+                <button class="nav-btn" data-view="economy">
+                    <span class="nav-btn__icon">💰</span>
+                    <span class="nav-btn__label">Economy</span>
+                </button>
+            </div>
+        </nav>
+
+        <!-- === SIDEBAR LEFT === -->
+        <aside class="sidebar-left" id="sidebar-left">
+            <div class="sidebar-left__header">
+                <h3>📊 Dashboard</h3>
+                <button class="sidebar-toggle" id="sidebar-toggle" aria-label="Toggle sidebar">◀</button>
+            </div>
+            <div class="sidebar-left__content">
+
+                <!-- Resources Section -->
+                <div class="sidebar-left__section resources-section">
+                    <div class="sidebar-left__section-title">Resources</div>
+                    <div id="resources-list">
+                        <!-- Populated dynamically by JS -->
+                    </div>
+                </div>
+
+                <!-- Buildings Section (visible when buildings view active) -->
+                <div class="sidebar-left__section buildings-section" id="buildings-panel" style="display: none;">
+                    <div class="sidebar-left__section-title">🏗️ Earth Management</div>
+
+                    <!-- Tabs -->
+                    <div class="buildings-tabs">
+                        <button id="buildings-tab-build" class="buildings-tab active">🏗️ Build</button>
+                        <button id="buildings-tab-list" class="buildings-tab">📋 Buildings</button>
+                    </div>
+
+                    <!-- Build Tab Content -->
+                    <div id="buildings-build-content">
+                        <p style="color: var(--color-text-faint); font-size: var(--font-size-base); margin-bottom: var(--space-md);">Available buildings for construction:</p>
+                        <div id="buildings-available-list">
+                            <!-- Populated dynamically -->
+                        </div>
+                    </div>
+
+                    <!-- Buildings List Tab Content -->
+                    <div id="buildings-list-content" style="display: none;">
+                        <div style="margin-bottom: var(--space-xl);">
+                            <h4 style="color: var(--color-accent); font-size: var(--font-size-md); margin: 0 0 var(--space-sm) 0;">🔨 In Construction</h4>
+                            <div id="buildings-in-construction">
+                                <div style="color: var(--color-text-faint); font-size: var(--font-size-base);">No buildings in construction</div>
+                            </div>
+                        </div>
+                        <div>
+                            <h4 style="color: var(--color-accent); font-size: var(--font-size-md); margin: 0 0 var(--space-sm) 0;">✅ Completed</h4>
+                            <div id="buildings-completed">
+                                <div style="color: var(--color-text-faint); font-size: var(--font-size-base);">No buildings completed</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Research Section (visible when research view active) -->
+                <div class="sidebar-left__section research-section" id="research-panel" style="display: none;">
+                    <div class="sidebar-left__section-title">🔬 Research</div>
+                    <div class="tech-category-filter" id="tech-category-filter">
+                        <!-- Populated by ResearchPanel.js -->
+                    </div>
+                    <div class="tech-tree" id="tech-tree">
+                        <!-- Populated by ResearchPanel.js -->
+                    </div>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Mobile sidebar backdrop -->
+        <div class="sidebar-backdrop" id="sidebar-backdrop"></div>
+
+        <!-- === MAIN VIEWPORT === -->
+        <main class="main-viewport">
+            <!-- HUD Overlay (controls hint) -->
+            <div id="hud" class="hud-overlay">
+                <div class="controls-hint">
+                    Click + trascina: ruota<br>
+                    Scroll: zoom<br>
+                    Click destro + trascina: pan<br>
+                    Click su pianeta: info
+                </div>
+            </div>
+        </main>
+
+        <!-- === BOTTOM DOCK === -->
+        <div class="bottom-dock" id="bottom-dock">
+            <div class="dock__resize-handle" id="dock-resize-handle"></div>
+            <div class="dock__tabs">
+                <button class="dock__tab active" data-dock-tab="missions">🚀 Missions</button>
+                <button class="dock__tab" data-dock-tab="economy">💰 Economy</button>
+                <button class="dock__tab" data-dock-tab="log">📋 Log</button>
+            </div>
+            <div class="dock__content">
+                <!-- Missions Tab -->
+                <div class="dock__panel active" id="dock-missions" data-dock-panel="missions">
+                    <div class="missions-section">
+                        <div class="missions-section__header">
+                            <h3>🚀 Active Missions</h3>
+                            <button id="toggle-trajectories-btn" class="active">👁️ Hide Trajectories</button>
+                        </div>
+                        <div id="missions-list"></div>
+                    </div>
+                </div>
+
+                <!-- Economy Tab -->
+                <div class="dock__panel" id="dock-economy" data-dock-panel="economy">
+                    <div class="economy-section" id="economy-content">
+                        <!-- Populated by EconomyPanel.js -->
+                        <p style="color: var(--color-text-faint);">Economy panel loading...</p>
+                    </div>
+                </div>
+
+                <!-- Log Tab -->
+                <div class="dock__panel" id="dock-log" data-dock-panel="log">
+                    <div class="log-section">
+                        <div class="log-filters" id="log-filters">
+                            <button class="log-filter-btn active" data-filter="all">All</button>
+                            <button class="log-filter-btn" data-filter="success">Success</button>
+                            <button class="log-filter-btn" data-filter="warning">Warning</button>
+                            <button class="log-filter-btn" data-filter="error">Error</button>
+                        </div>
+                        <div id="log-entries">
+                            <div class="log-entry">
+                                <span class="log-entry__time">--:--</span>
+                                <span class="log-entry__icon">🚀</span>
+                                <span class="log-entry__message">Welcome to FuturY! Select a planet to begin.</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 
-    <!-- Resources Display -->
-    <div id="resources-display">
-        <h3>📊 Resources</h3>
-        <div id="resources-list">
-            <!-- Resources will be populated dynamically -->
-        </div>
-    </div>
-
-    <!-- Planet Information Panel -->
+    <!-- Planet Information Panel (floating, outside grid) -->
     <div id="planet-info-panel" class="planet-panel hidden">
         <div class="panel-header">
             <h3 id="planet-name">Planet Name</h3>
@@ -462,204 +248,24 @@
                     <span id="planet-mission-cost" class="value"></span>
                 </div>
             </div>
-            <button id="launch-mission-btn" class="launch-btn" style="width: 100%; margin-top: 15px; padding: 12px; background: #4fd1c7; border: none; border-radius: 4px; color: #000; font-weight: bold; cursor: pointer;">
-                🚀 Launch Mission
-            </button>
+            <button id="launch-mission-btn" class="launch-btn">🚀 Launch Mission</button>
         </div>
     </div>
-
-    <!-- Active Missions Panel -->
-    <div id="missions-panel" style="position: fixed; bottom: 20px; right: 20px; background: rgba(0,0,0,0.7); border: 2px solid #4fd1c7; border-radius: 8px; padding: 15px; min-width: 320px; max-height: 250px; overflow-y: auto; z-index: 100;">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
-            <h3 style="color: #4fd1c7; font-size: 14px; margin: 0;">🚀 Active Missions</h3>
-            <button id="toggle-trajectories-btn" class="active" style="background: rgba(79,209,199,0.2); border: 1px solid #4fd1c7; border-radius: 4px; padding: 4px 8px; color: #4fd1c7; font-size: 11px; cursor: pointer; transition: all 0.2s;">
-                👁️ Hide Trajectories
-            </button>
-        </div>
-        <div id="missions-list"></div>
-    </div>
-
-    <!-- Buildings Management Panel -->
-    <div id="buildings-panel" style="position: fixed; top: 80px; left: 20px; background: rgba(0,0,0,0.85); border: 2px solid #4fd1c7; border-radius: 8px; padding: 15px; width: 350px; max-height: 70vh; overflow-y: auto; z-index: 100; display: none;">
-        <h3 style="color: #4fd1c7; font-size: 16px; margin: 0 0 15px 0;">🏗️ Earth Management</h3>
-
-        <!-- Tabs -->
-        <div style="display: flex; gap: 10px; margin-bottom: 15px; border-bottom: 1px solid rgba(79,209,199,0.3); padding-bottom: 10px;">
-            <button id="buildings-tab-build" class="buildings-tab active" style="flex: 1; padding: 8px; background: rgba(79,209,199,0.2); border: 1px solid #4fd1c7; border-radius: 4px; color: #4fd1c7; cursor: pointer; transition: all 0.2s;">
-                🏗️ Build
-            </button>
-            <button id="buildings-tab-list" class="buildings-tab" style="flex: 1; padding: 8px; background: rgba(79,209,199,0.1); border: 1px solid rgba(79,209,199,0.3); border-radius: 4px; color: #4fd1c7; cursor: pointer; transition: all 0.2s;">
-                📋 Buildings
-            </button>
-        </div>
-
-        <!-- Build Tab Content -->
-        <div id="buildings-build-content">
-            <p style="color: #888; font-size: 12px; margin-bottom: 10px;">Available buildings for construction:</p>
-            <div id="buildings-available-list">
-                <!-- Will be populated dynamically -->
-            </div>
-        </div>
-
-        <!-- Buildings List Tab Content -->
-        <div id="buildings-list-content" style="display: none;">
-            <div style="margin-bottom: 15px;">
-                <h4 style="color: #4fd1c7; font-size: 13px; margin: 0 0 8px 0;">🔨 In Construction</h4>
-                <div id="buildings-in-construction">
-                    <div style="color: #888; font-size: 12px;">No buildings in construction</div>
-                </div>
-            </div>
-            <div>
-                <h4 style="color: #4fd1c7; font-size: 13px; margin: 0 0 8px 0;">✅ Completed</h4>
-                <div id="buildings-completed">
-                    <div style="color: #888; font-size: 12px;">No buildings completed</div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <style>
-        /* Mission item styles - Enhanced for card_404 */
-        .mission-item {
-            margin-bottom: 10px;
-            padding: 10px;
-            background: rgba(15, 23, 42, 0.8);
-            border-radius: 6px;
-            transition: all 0.2s;
-            border: 1px solid rgba(79,209,199,0.3);
-            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
-        }
-
-        .mission-item:hover {
-            background: rgba(79,209,199,0.15);
-            border-color: #4fd1c7;
-            transform: translateX(-3px);
-            box-shadow: 0 4px 12px rgba(79,209,199,0.3);
-        }
-
-        .mission-item.selected {
-            background: rgba(79,209,199,0.25);
-            border-color: #4fd1c7;
-            box-shadow: 0 0 15px rgba(79,209,199,0.5);
-            transform: translateX(-3px);
-        }
-
-        #toggle-trajectories-btn:hover {
-            background: rgba(79,209,199,0.3);
-            transform: scale(1.05);
-        }
-
-        #toggle-trajectories-btn.active {
-            background: rgba(79,209,199,0.4);
-        }
-
-        /* Buildings Panel Styles */
-        .buildings-tab:hover {
-            background: rgba(79,209,199,0.3);
-        }
-
-        .buildings-tab.active {
-            background: rgba(79,209,199,0.4) !important;
-            border-color: #4fd1c7 !important;
-        }
-
-        .building-card {
-            background: rgba(15,23,42,0.8);
-            border: 1px solid rgba(79,209,199,0.3);
-            border-radius: 6px;
-            padding: 12px;
-            margin-bottom: 10px;
-            transition: all 0.2s;
-        }
-
-        .building-card:hover {
-            border-color: #4fd1c7;
-            background: rgba(15,23,42,1);
-        }
-
-        .building-name {
-            color: #4fd1c7;
-            font-size: 14px;
-            font-weight: bold;
-            margin-bottom: 5px;
-        }
-
-        .building-desc {
-            color: #cbd5e0;
-            font-size: 11px;
-            margin-bottom: 8px;
-            line-height: 1.3;
-        }
-
-        .building-costs {
-            display: flex;
-            gap: 8px;
-            flex-wrap: wrap;
-            font-size: 11px;
-            margin-bottom: 8px;
-        }
-
-        .cost-item {
-            background: rgba(79,209,199,0.1);
-            padding: 3px 6px;
-            border-radius: 3px;
-            color: #a0aec0;
-        }
-
-        .build-btn {
-            width: 100%;
-            padding: 8px;
-            background: linear-gradient(135deg, #4fd1c7, #63b3ed);
-            border: none;
-            border-radius: 4px;
-            color: white;
-            font-weight: bold;
-            cursor: pointer;
-            transition: all 0.2s;
-        }
-
-        .build-btn:hover:not(:disabled) {
-            transform: translateY(-1px);
-            box-shadow: 0 4px 12px rgba(79,209,199,0.4);
-        }
-
-        .build-btn:disabled {
-            opacity: 0.5;
-            cursor: not-allowed;
-            background: #4a5568;
-        }
-
-        .building-progress {
-            margin-top: 5px;
-        }
-
-        .progress-bar {
-            width: 100%;
-            height: 6px;
-            background: rgba(0,0,0,0.5);
-            border-radius: 3px;
-            overflow: hidden;
-        }
-
-        .progress-fill {
-            height: 100%;
-            background: linear-gradient(90deg, #4fd1c7, #63b3ed);
-            transition: width 0.3s ease;
-        }
-    </style>
 
     <script type="module">
-        import { SolarSystemRenderer } from './js/graphics/SolarSystemRenderer.js?v=20250210142500';
-        import { MissionTrajectoryRenderer } from './js/graphics/MissionTrajectoryRenderer.js?v=20250211';
-        import { UIController } from './js/ui/UIController.js?v=20250210142500';
-        import { ResourceManager } from './js/core/ResourceManager.js?v=20250211';
-        import { MissionManager } from './js/core/MissionManager.js?v=20250211';
-        import { BuildingManager } from './js/core/BuildingManager.js?v=20250211';
-        import { SaveManager } from './js/core/SaveManager.js?v=20250211';
-        import { TimeManager } from './js/core/TimeManager.js?v=20250211';
-        import { NotificationManager } from './js/ui/NotificationManager.js?v=20250211';
-        import { TutorialManager } from './js/ui/TutorialManager.js?v=20250211';
-        import { ColonizationManager } from './js/core/ColonizationManager.js?v=20250212';
+        import { SolarSystemRenderer } from './js/graphics/SolarSystemRenderer.js?v=20250217';
+        import { MissionTrajectoryRenderer } from './js/graphics/MissionTrajectoryRenderer.js?v=20250217';
+        import { UIController } from './js/ui/UIController.js?v=20250217';
+        import { ResourceManager } from './js/core/ResourceManager.js?v=20250217';
+        import { MissionManager } from './js/core/MissionManager.js?v=20250217';
+        import { BuildingManager } from './js/core/BuildingManager.js?v=20250217';
+        import { SaveManager } from './js/core/SaveManager.js?v=20250217';
+        import { TimeManager } from './js/core/TimeManager.js?v=20250217';
+        import { NotificationManager } from './js/ui/NotificationManager.js?v=20250217';
+        import { TutorialManager } from './js/ui/TutorialManager.js?v=20250217';
+        import { ColonizationManager } from './js/core/ColonizationManager.js?v=20250217';
+        import { ResearchPanel } from './js/ui/ResearchPanel.js?v=20250217';
+        import { EconomyPanel } from './js/ui/EconomyPanel.js?v=20250217';
 
         const renderer = new SolarSystemRenderer('solar-system-canvas');
         const uiController = new UIController();
@@ -668,6 +274,8 @@
         const timeManager = new TimeManager();
         const buildingManager = new BuildingManager(resourceManager, timeManager);
         const saveManager = new SaveManager();
+        const researchPanel = new ResearchPanel('tech-tree', 'tech-category-filter');
+        const economyPanel = new EconomyPanel('economy-content');
         const notificationManager = new NotificationManager();
         const tutorialManager = new TutorialManager();
         const colonizationManager = new ColonizationManager();
@@ -678,29 +286,179 @@
         window.missionManager = missionManager;
 
         let selectedPlanet = null;
-        let trajectoryRenderer = null; // Will be initialized after renderer is ready
+        let trajectoryRenderer = null;
 
-        // Navigation menu
+        // === LAYOUT: Sidebar Toggle (card_706) ===
+        const sidebarEl = document.getElementById('sidebar-left');
+        const sidebarToggleBtn = document.getElementById('sidebar-toggle');
+        const appContainer = document.getElementById('app-container');
+        const hamburgerBtn = document.getElementById('hamburger-btn');
+        const sidebarBackdrop = document.getElementById('sidebar-backdrop');
+
+        // Load sidebar state from localStorage
+        const sidebarCollapsed = localStorage.getItem('futury-sidebar-collapsed') === 'true';
+        if (sidebarCollapsed) {
+            appContainer.classList.add('sidebar-collapsed');
+        }
+
+        sidebarToggleBtn.addEventListener('click', () => {
+            appContainer.classList.toggle('sidebar-collapsed');
+            localStorage.setItem('futury-sidebar-collapsed', appContainer.classList.contains('sidebar-collapsed'));
+        });
+
+        // Mobile hamburger
+        hamburgerBtn.addEventListener('click', () => {
+            sidebarEl.classList.toggle('open');
+        });
+
+        sidebarBackdrop.addEventListener('click', () => {
+            sidebarEl.classList.remove('open');
+        });
+
+        // === LAYOUT: Bottom Dock Tabs (card_707) ===
+        const dockTabs = document.querySelectorAll('.dock__tab');
+        const dockPanels = document.querySelectorAll('.dock__panel');
+        const bottomDock = document.getElementById('bottom-dock');
+
+        dockTabs.forEach(tab => {
+            tab.addEventListener('click', () => {
+                const targetTab = tab.dataset.dockTab;
+
+                // Double-click to minimize/expand
+                if (tab.classList.contains('active')) {
+                    bottomDock.classList.toggle('minimized');
+                    return;
+                }
+
+                // Switch tab
+                dockTabs.forEach(t => t.classList.remove('active'));
+                dockPanels.forEach(p => p.classList.remove('active'));
+                tab.classList.add('active');
+
+                const panel = document.querySelector(`[data-dock-panel="${targetTab}"]`);
+                if (panel) panel.classList.add('active');
+
+                // Expand if minimized
+                bottomDock.classList.remove('minimized');
+            });
+        });
+
+        // Dock resize handle
+        const dockResizeHandle = document.getElementById('dock-resize-handle');
+        let dockResizing = false;
+
+        dockResizeHandle.addEventListener('mousedown', (e) => {
+            dockResizing = true;
+            e.preventDefault();
+        });
+
+        document.addEventListener('mousemove', (e) => {
+            if (!dockResizing) return;
+            const newHeight = window.innerHeight - e.clientY;
+            const clampedHeight = Math.max(48, Math.min(newHeight, window.innerHeight * 0.5));
+            bottomDock.style.height = clampedHeight + 'px';
+        });
+
+        document.addEventListener('mouseup', () => {
+            dockResizing = false;
+        });
+
+        // === LAYOUT: Nav-bar tabs (card_708) ===
         document.querySelectorAll('.nav-btn').forEach(btn => {
             btn.addEventListener('click', () => {
                 document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
                 btn.classList.add('active');
 
-                // Show/hide buildings panel based on view
                 const view = btn.dataset.view;
                 const buildingsPanel = document.getElementById('buildings-panel');
+                const researchPanel = document.getElementById('research-panel');
+
+                // Show/hide sidebar sections based on view
+                buildingsPanel.style.display = (view === 'buildings') ? 'block' : 'none';
+                researchPanel.style.display = (view === 'research') ? 'block' : 'none';
 
                 if (view === 'buildings') {
-                    buildingsPanel.style.display = 'block';
-                    updateBuildingsPanel(); // Refresh panel when opened
-                } else {
-                    buildingsPanel.style.display = 'none';
+                    updateBuildingsPanel();
                 }
 
-                notificationManager.info('Navigation', `Switched to ${btn.dataset.view}`, 2000);
+                // Focus dock tabs based on view
+                if (view === 'missions' || view === 'economy') {
+                    const dockTab = document.querySelector(`.dock__tab[data-dock-tab="${view === 'missions' ? 'missions' : 'economy'}"]`);
+                    if (dockTab) dockTab.click();
+                }
 
-                // Tutorial event (card_311)
+                notificationManager.info('Navigation', `Switched to ${view}`, 2000);
                 tutorialManager.onEvent('nav-click', view);
+            });
+        });
+
+        // === LOG: Add log entries from notifications (card_713) ===
+        const logEntries = document.getElementById('log-entries');
+        const originalNotify = notificationManager.notify?.bind(notificationManager);
+
+        function addLogEntry(type, title, message) {
+            const now = new Date();
+            const time = `${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`;
+            const icons = { success: '✅', warning: '⚠️', error: '❌', info: '💬' };
+            const entry = document.createElement('div');
+            entry.className = `log-entry ${type}`;
+            entry.innerHTML = `
+                <span class="log-entry__time">${time}</span>
+                <span class="log-entry__icon">${icons[type] || '💬'}</span>
+                <span class="log-entry__message">${title}: ${message}</span>
+            `;
+            logEntries.prepend(entry);
+
+            // Keep max 100 entries
+            while (logEntries.children.length > 100) {
+                logEntries.removeChild(logEntries.lastChild);
+            }
+        }
+
+        // Hook into NotificationManager
+        const origSuccess = notificationManager.success?.bind(notificationManager);
+        const origWarning = notificationManager.warning?.bind(notificationManager);
+        const origError = notificationManager.error?.bind(notificationManager);
+        const origInfo = notificationManager.info?.bind(notificationManager);
+
+        if (origSuccess) {
+            notificationManager.success = (title, msg, dur) => {
+                addLogEntry('success', title, msg);
+                return origSuccess(title, msg, dur);
+            };
+        }
+        if (origWarning) {
+            notificationManager.warning = (title, msg, dur) => {
+                addLogEntry('warning', title, msg);
+                return origWarning(title, msg, dur);
+            };
+        }
+        if (origError) {
+            notificationManager.error = (title, msg, dur) => {
+                addLogEntry('error', title, msg);
+                return origError(title, msg, dur);
+            };
+        }
+        if (origInfo) {
+            notificationManager.info = (title, msg, dur) => {
+                addLogEntry('info', title, msg);
+                return origInfo(title, msg, dur);
+            };
+        }
+
+        // Log filter buttons
+        document.querySelectorAll('.log-filter-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                document.querySelectorAll('.log-filter-btn').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                const filter = btn.dataset.filter;
+                document.querySelectorAll('.log-entry').forEach(entry => {
+                    if (filter === 'all' || entry.classList.contains(filter)) {
+                        entry.style.display = '';
+                    } else {
+                        entry.style.display = 'none';
+                    }
+                });
             });
         });
 
@@ -711,8 +469,6 @@
                 uiController.showPlanetInfo(planetInfo);
                 updateMissionCostDisplay(planetInfo);
                 updateColonizationStatus(planetInfo);
-
-                // Tutorial event (card_311)
                 tutorialManager.onEvent('planet-click', planetInfo.name);
             } else {
                 selectedPlanet = null;
@@ -739,20 +495,12 @@
             const planetName = planetInfo.name;
             const status = colonizationManager.getColonizationStatus(planetName);
 
-            // Add colonization status to planet panel
             const panelContent = document.querySelector('#planet-info-panel .panel-content');
             let statusEl = document.getElementById('colonization-status-display');
 
             if (!statusEl) {
                 statusEl = document.createElement('div');
                 statusEl.id = 'colonization-status-display';
-                statusEl.style.cssText = `
-                    margin-bottom: 15px;
-                    padding: 10px;
-                    background: rgba(79, 209, 199, 0.1);
-                    border-left: 3px solid ${status.color};
-                    border-radius: 4px;
-                `;
                 panelContent.insertBefore(statusEl, panelContent.firstChild);
             }
 
@@ -762,11 +510,10 @@
                     <span style="font-size: 20px;">${status.icon}</span>
                     <span style="color: ${status.color}; font-weight: bold; font-size: 14px;">${status.status}</span>
                 </div>
-                <div style="color: #cbd5e0; font-size: 12px;">${status.description}</div>
-                ${status.population ? `<div style="color: #4fd1c7; font-size: 11px; margin-top: 5px;">👥 Population: ${status.population}</div>` : ''}
+                <div style="color: var(--color-text-secondary); font-size: 12px;">${status.description}</div>
+                ${status.population ? `<div style="color: var(--color-accent); font-size: 11px; margin-top: 5px;">👥 Population: ${status.population}</div>` : ''}
             `;
 
-            // Update launch button based on colonization status
             const launchBtn = document.getElementById('launch-mission-btn');
             if (colonizationManager.isColonized(planetName)) {
                 launchBtn.textContent = '✅ Already Colonized';
@@ -781,47 +528,30 @@
             }
         }
 
-        /**
-         * Play mission launch sequence animation (card_403)
-         * @param {string} destination - Target planet name
-         * @param {Function} onComplete - Callback when sequence completes
-         */
+        // Launch sequence animation (card_403)
         async function playLaunchSequence(destination, onComplete) {
             const overlay = document.getElementById('launch-sequence-overlay');
             const countdownText = document.getElementById('countdown-text');
 
-            // Zoom camera to Earth
             const earth = renderer.scene.getObjectByName('Earth');
             if (earth) {
                 renderer._animateCameraToPlanet(earth);
             }
 
-            // Show overlay
             overlay.classList.add('active');
 
-            // Countdown: 3... 2... 1... LAUNCH!
             const countdown = ['3', '2', '1', '🚀 LAUNCH!'];
-
             for (let i = 0; i < countdown.length; i++) {
                 countdownText.textContent = countdown[i];
                 countdownText.className = 'countdown-display';
-
-                // Special styling for launch
                 if (i === countdown.length - 1) {
                     countdownText.classList.add('launch');
                 }
-
-                // Wait for animation
                 await new Promise(resolve => setTimeout(resolve, i === countdown.length - 1 ? 1200 : 800));
             }
 
-            // Hide overlay
             overlay.classList.remove('active');
-
-            // Execute callback
-            if (onComplete) {
-                onComplete();
-            }
+            if (onComplete) onComplete();
         }
 
         // Launch mission button
@@ -830,7 +560,6 @@
 
             const destination = selectedPlanet.name;
 
-            // Special handling for Mars mission (card_401)
             if (destination === 'Mars') {
                 const canLaunch = missionManager.canLaunchMarsMission();
                 if (!canLaunch.can) {
@@ -847,9 +576,7 @@
                 return;
             }
 
-            // Play launch sequence animation (card_403)
             await playLaunchSequence(destination, () => {
-                // Consume resources after launch sequence
                 const result = resourceManager.consume(costs);
 
                 if (result.success) {
@@ -875,8 +602,6 @@
                         `${mission.name} is underway! ETA: ${eta}`, 5000);
 
                     console.log(`🚀 Mission to ${destination} launched. Arrival in ${eta}`);
-
-                    // Tutorial event (card_311)
                     tutorialManager.onEvent('mission-launch', destination);
                 }
             });
@@ -884,38 +609,33 @@
 
         await renderer.init();
 
-        // Initialize and start tutorial (card_310, card_311)
+        // Tutorial
         tutorialManager.init();
         setTimeout(() => {
             const started = tutorialManager.start();
             if (started) {
                 console.log('📚 Tutorial started for new player');
             }
-        }, 1000); // Delay to let everything load
+        }, 1000);
 
         tutorialManager.onComplete = () => {
             notificationManager.success('Tutorial Complete!',
                 'You are ready to save humanity. Good luck, Commander!', 5000);
         };
 
-        // Initialize trajectory renderer after scene is ready
-        // Use planet groups from SolarSystemRenderer for accurate positions
+        // Initialize trajectory renderer
         const planetsMap = new Map();
         for (const [name, planetData] of renderer.planets.entries()) {
             planetsMap.set(name, planetData.group);
-            console.log(`[TrajectoryInit] Added planet ${name}, group:`, planetData.group);
         }
-        console.log(`[TrajectoryInit] Total planets in map: ${planetsMap.size}`);
 
         trajectoryRenderer = new MissionTrajectoryRenderer(renderer.scene, planetsMap);
 
-        // Connect UIController callbacks
         uiController.onToggleTrajectories = () => {
             return trajectoryRenderer.toggleVisibility();
         };
 
         uiController.onMissionClick = (missionId) => {
-            console.log(`Focusing on mission ${missionId}`);
             trajectoryRenderer.focusOnMission(missionId, renderer.camera, renderer.controls);
         };
 
@@ -929,23 +649,31 @@
         // Initialize time manager
         timeManager.init(2100, 2100);
 
-        // Initialize colonization manager (card_405)
+        // Initialize colonization manager
         colonizationManager.init();
         colonizationManager.onColonizationChange((data) => {
-            console.log('🏛️ Colonization changed:', data);
-            // Update UI when colonization status changes
             if (selectedPlanet) {
                 updateColonizationStatus(selectedPlanet);
             }
         });
 
-        // Get selected nation from URL params or sessionStorage (card_308)
+        // Initialize research panel (card_709)
+        researchPanel.init(1);
+        researchPanel.onResearchStart = (result) => {
+            if (result.error) {
+                notificationManager.error('Research Failed', result.error);
+            } else {
+                notificationManager.success('Research Started! 🔬', result.message, 5000);
+                updateResourcesHUD();
+            }
+        };
+
+        // Initialize economy panel (card_711)
+        economyPanel.init(resourceManager, buildingManager);
+
+        // Load nation data
         const urlParams = new URLSearchParams(window.location.search);
         const selectedNationCode = urlParams.get('nation') || sessionStorage.getItem('selectedNation') || 'USA';
-
-        console.log(`🌍 Selected Nation: ${selectedNationCode}`);
-
-        // Load nation data and initialize resources with bonuses
         let selectedNation = null;
 
         async function loadNationData(nationCode) {
@@ -955,9 +683,6 @@
 
                 if (result.success && result.data) {
                     const nation = result.data;
-                    console.log('📊 Nation loaded:', nation);
-
-                    // Initialize resources with nation-specific values and multipliers
                     resourceManager.initializeResources({
                         budget: nation.starting_budget || 1000000,
                         science: nation.starting_science || 10000,
@@ -968,19 +693,15 @@
                     });
 
                     selectedNation = nation;
-
-                    // Show nation selection notification
                     notificationManager.info('Nation Selected',
                         `Playing as ${nation.name}. Budget +${((nation.budget_multiplier - 1) * 100).toFixed(0)}%, Science +${((nation.science_multiplier - 1) * 100).toFixed(0)}%`,
                         5000);
-
                     return nation;
                 } else {
                     throw new Error('Nation not found');
                 }
             } catch (error) {
                 console.warn('Failed to load nation, using defaults:', error);
-                // Fallback to default values
                 resourceManager.initializeResources({
                     budget: 1000000,
                     science: 10000,
@@ -990,39 +711,30 @@
             }
         }
 
-        // Load nation before initializing save manager
         loadNationData(selectedNationCode);
 
-        // Initialize save manager (session ID 1 for now)
+        // Save manager
         saveManager.init(1);
-
-        // Try to load saved game
         saveManager.loadGame().then(gameState => {
             if (gameState && gameState.session) {
-                console.log('📂 Loading saved game...');
                 saveManager.applyGameState(gameState, timeManager, resourceManager, missionManager);
-                console.log('✅ Saved game restored');
-            } else {
-                console.log('🆕 Starting new game (no save found)');
             }
         }).catch(err => {
             console.log('🆕 Starting new game (load error):', err.message);
         });
 
         saveManager.startAutoSave();
-
-        // Save notification
         saveManager.onSave((data) => {
             console.log('💾 Game saved at', data.saved_at);
         });
 
-        // Game time: 1 game year (365 days) = 24 real hours (86400 seconds)
+        // Game time
         const startYear = 2100;
         const startTime = performance.now();
         const yearEl = document.getElementById('game-year');
         const dateEl = document.getElementById('game-date');
         const resourcesList = document.getElementById('resources-list');
-        const SECONDS_PER_GAME_YEAR = 86400; // 24h real = 1 year in game
+        const SECONDS_PER_GAME_YEAR = 86400;
 
         const MONTHS = ['gen','feb','mar','apr','mag','giu','lug','ago','set','ott','nov','dic'];
         const DAYS_IN_MONTH = [31,28,31,30,31,30,31,31,30,31,30,31];
@@ -1068,9 +780,10 @@
             }).join('');
         }
 
-        // Show resource change animation
+        // Resource change animation
         function showResourceChange(resource, change) {
-            const resourceDisplay = document.getElementById('resources-display');
+            const resourceDisplay = document.getElementById('resources-list');
+            if (!resourceDisplay) return;
             const rect = resourceDisplay.getBoundingClientRect();
 
             const changeEl = document.createElement('div');
@@ -1080,11 +793,9 @@
             changeEl.style.top = `${rect.top + 40}px`;
 
             document.body.appendChild(changeEl);
-
             setTimeout(() => changeEl.remove(), 1500);
         }
 
-        // Register resource change callback
         resourceManager.onChange((changes) => {
             for (const [resource, data] of Object.entries(changes)) {
                 if (Math.abs(data.change) > 0) {
@@ -1094,16 +805,15 @@
             updateResourcesHUD();
         });
 
-        // Initial HUD update
         updateResourcesHUD();
 
-        // Update missions display (Enhanced for card_404)
+        // Missions display
         function updateMissionsDisplay() {
             const missionsListEl = document.getElementById('missions-list');
             const activeMissions = missionManager.getActiveMissions();
 
             if (activeMissions.length === 0) {
-                missionsListEl.innerHTML = '<div style="color: #888; font-size: 12px;">No active missions</div>';
+                missionsListEl.innerHTML = '<div style="color: var(--color-text-faint); font-size: var(--font-size-base);">No active missions</div>';
                 return;
             }
 
@@ -1113,22 +823,20 @@
                 const etaRealTime = missionManager.formatTravelTime(yearsRemaining);
                 const gameYearsRemaining = yearsRemaining.toFixed(1);
 
-                // Mission type badge
                 let badge = '';
-                let badgeColor = '#4fd1c7';
+                let badgeColor = 'var(--color-accent)';
                 if (m.mission_type === 'COLONIZATION') {
                     badge = '🏗️';
-                    badgeColor = '#FFB84D';
+                    badgeColor = 'var(--color-warning)';
                 } else {
                     badge = '🔍';
-                    badgeColor = '#90EE90';
+                    badgeColor = 'var(--color-success)';
                 }
 
-                // Expected rewards (if colonization mission)
                 let rewardsHtml = '';
                 if (m.mission_type === 'COLONIZATION' && m.destination === 'Mars') {
                     rewardsHtml = `
-                        <div style="font-size: 10px; color: #4fd1c7; margin-top: 3px; padding-top: 3px; border-top: 1px solid rgba(79,209,199,0.2);">
+                        <div style="font-size: var(--font-size-xs); color: var(--color-accent); margin-top: 3px; padding-top: 3px; border-top: 1px solid var(--color-accent-subtle);">
                             Expected rewards: 🔬 +5000, 👥 +50 colonists
                         </div>
                     `;
@@ -1139,36 +847,33 @@
                         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px;">
                             <div style="display: flex; align-items: center; gap: 6px;">
                                 <span style="font-size: 16px;">${badge}</span>
-                                <span style="font-size: 12px; color: #fff; font-weight: 500;">${m.name || (m.origin + ' → ' + m.destination)}</span>
+                                <span style="font-size: var(--font-size-base); color: var(--color-text-primary); font-weight: 500;">${m.name || (m.origin + ' → ' + m.destination)}</span>
                             </div>
-                            <span style="color: ${badgeColor}; font-size: 10px; font-weight: bold; background: rgba(79,209,199,0.1); padding: 2px 6px; border-radius: 3px;">
+                            <span style="color: ${badgeColor}; font-size: var(--font-size-xs); font-weight: bold; background: var(--color-accent-subtle); padding: 2px 6px; border-radius: 3px;">
                                 ${m.mission_type || 'EXPLORATION'}
                             </span>
                         </div>
-                        <div style="display: flex; justify-content: space-between; font-size: 10px; color: #aaa; margin-bottom: 4px;">
+                        <div style="display: flex; justify-content: space-between; font-size: var(--font-size-xs); color: var(--color-text-dim); margin-bottom: 4px;">
                             <span>⏱️ ETA: ${etaRealTime} (${gameYearsRemaining}y)</span>
-                            <span style="color: #4fd1c7;">${progress}%</span>
+                            <span style="color: var(--color-accent);">${progress}%</span>
                         </div>
-                        <div style="width: 100%; height: 6px; background: rgba(0,0,0,0.5); border-radius: 3px; overflow: hidden;">
-                            <div style="width: ${progress}%; height: 100%; background: linear-gradient(90deg, #4fd1c7 0%, #90EE90 100%); border-radius: 3px; transition: width 0.3s; box-shadow: 0 0 8px rgba(79,209,199,0.4);"></div>
+                        <div class="progress-bar">
+                            <div class="progress-fill" style="width: ${progress}%; box-shadow: 0 0 8px var(--color-accent-glow);"></div>
                         </div>
                         ${rewardsHtml}
                     </div>
                 `;
             }).join('');
 
-            // Update trajectory renderer
             if (trajectoryRenderer) {
                 trajectoryRenderer.update(activeMissions);
             }
 
-            // Setup click handlers after rendering
             setTimeout(() => uiController.setupMissionClickHandlers(), 0);
         }
 
-        // Buildings Panel Management
+        // Buildings panel management
         function updateBuildingsPanel() {
-            // Populate available buildings
             const availableList = document.getElementById('buildings-available-list');
             const buildings = buildingManager.getAvailableBuildings();
 
@@ -1193,25 +898,21 @@
                 `;
             }).join('');
 
-            // Setup build button handlers
             document.querySelectorAll('.build-btn').forEach(btn => {
                 btn.addEventListener('click', () => {
-                    const buildingCode = btn.dataset.buildingCode;
-                    handleBuildClick(buildingCode);
+                    handleBuildClick(btn.dataset.buildingCode);
                 });
             });
 
-            // Update construction list
             updateConstructionList();
         }
 
         function updateConstructionList() {
-            // In construction
             const inConstructionEl = document.getElementById('buildings-in-construction');
             const inConstruction = buildingManager.getBuildingsInConstruction();
 
             if (inConstruction.length === 0) {
-                inConstructionEl.innerHTML = '<div style="color: #888; font-size: 12px;">No buildings in construction</div>';
+                inConstructionEl.innerHTML = '<div style="color: var(--color-text-faint); font-size: var(--font-size-base);">No buildings in construction</div>';
             } else {
                 inConstructionEl.innerHTML = inConstruction.map(b => {
                     const icon = buildingManager.getBuildingIcon(b.building_code);
@@ -1221,32 +922,31 @@
                     return `
                         <div class="building-card">
                             <div class="building-name">${icon} ${b.name}</div>
-                            <div style="font-size: 11px; color: #a0aec0; margin-bottom: 5px;">
+                            <div style="font-size: var(--font-size-sm); color: var(--color-text-muted); margin-bottom: 5px;">
                                 ⏱️ ${yearsLeft} years remaining
                             </div>
                             <div class="building-progress">
                                 <div class="progress-bar">
                                     <div class="progress-fill" style="width: ${progress}%"></div>
                                 </div>
-                                <div style="font-size: 10px; color: #888; margin-top: 2px;">${progress}%</div>
+                                <div style="font-size: var(--font-size-xs); color: var(--color-text-faint); margin-top: 2px;">${progress}%</div>
                             </div>
                         </div>
                     `;
                 }).join('');
             }
 
-            // Completed buildings
             const completedEl = document.getElementById('buildings-completed');
             const completed = buildingManager.getPlanetBuildings('Earth').filter(b => b.status === 'COMPLETED');
 
             if (completed.length === 0) {
-                completedEl.innerHTML = '<div style="color: #888; font-size: 12px;">No buildings completed</div>';
+                completedEl.innerHTML = '<div style="color: var(--color-text-faint); font-size: var(--font-size-base);">No buildings completed</div>';
             } else {
                 completedEl.innerHTML = completed.map(b => {
                     const icon = buildingManager.getBuildingIcon(b.building_code);
                     return `
-                        <div style="padding: 8px; background: rgba(79,209,199,0.1); border-radius: 4px; margin-bottom: 5px;">
-                            <span style="font-size: 12px;">${icon} ${b.name}</span>
+                        <div style="padding: var(--space-sm); background: var(--color-accent-subtle); border-radius: var(--border-radius-md); margin-bottom: 5px;">
+                            <span style="font-size: var(--font-size-base);">${icon} ${b.name}</span>
                         </div>
                     `;
                 }).join('');
@@ -1269,12 +969,9 @@
         document.querySelectorAll('.buildings-tab').forEach(tab => {
             tab.addEventListener('click', (e) => {
                 const tabId = e.target.id;
-
-                // Update tab styles
                 document.querySelectorAll('.buildings-tab').forEach(t => t.classList.remove('active'));
                 e.target.classList.add('active');
 
-                // Show/hide content
                 if (tabId === 'buildings-tab-build') {
                     document.getElementById('buildings-build-content').style.display = 'block';
                     document.getElementById('buildings-list-content').style.display = 'none';
@@ -1285,59 +982,44 @@
             });
         });
 
-        // Initialize buildings panel
         updateBuildingsPanel();
 
-        // Mission completion notification (Enhanced for card_405)
+        // Mission completion
         missionManager.onMissionComplete((missionResult) => {
             const mission = missionResult.mission;
-
-            // Handle colonization and exploration (card_405)
             const colonizationResult = colonizationManager.handleMissionCompletion(mission, currentGameYear);
 
-            // Apply Mars mission rewards (card_401)
             if (missionResult.rewards) {
                 const rewards = missionResult.rewards;
-
                 if (rewards.science) {
                     resourceManager.add({ science: rewards.science });
-                    console.log(`🎁 ${mission.destination} reward: +${rewards.science} science`);
                 }
-
                 if (rewards.population) {
                     resourceManager.add({ population: rewards.population });
-                    console.log(`🎁 ${mission.destination} reward: +${rewards.population} population`);
                 }
-
                 updateResourcesHUD();
 
-                // Show special notification for colonization completion
                 if (colonizationResult.colonized) {
                     notificationManager.success(`🎉 ${mission.destination} Colony Established!`,
-                        `First human settlement on ${mission.destination}! +${rewards.science} science, +${rewards.population} colonists. ${mission.destination} colonization unlocked!`, 10000);
+                        `First human settlement on ${mission.destination}! +${rewards.science} science, +${rewards.population} colonists.`, 10000);
                 } else {
                     notificationManager.success(`🔍 ${mission.destination} Explored!`,
-                        `Mission to ${mission.destination} completed! +${rewards.science} science. Colony can now be established.`, 8000);
+                        `Mission to ${mission.destination} completed! +${rewards.science} science.`, 8000);
                 }
             } else {
-                // Standard mission completion
                 if (colonizationResult.colonized) {
                     notificationManager.success(`🏛️ ${mission.destination} Colonized!`,
-                        `${mission.destination} has been successfully colonized! You can now build structures there.`, 8000);
+                        `${mission.destination} has been successfully colonized!`, 8000);
                 } else {
                     notificationManager.success('Mission Complete! 🎉',
-                        `Mission to ${mission.destination} has arrived successfully! Planet explored.`, 8000);
+                        `Mission to ${mission.destination} has arrived successfully!`, 8000);
                 }
             }
 
             updateMissionsDisplay();
-
-            // Log colonization status
-            console.log(`📊 Colonization Status:`, colonizationManager.getStats());
         });
 
         let currentGameYear = 2100;
-
         let lastFrameTime = performance.now();
         let lastMissionUpdate = 0;
 
@@ -1358,26 +1040,27 @@
             yearEl.textContent = yearInt;
             dateEl.textContent = yearFractionToDate(fraction);
 
-            // Update resources
             resourceManager.update(deltaTime);
 
-            // Update missions and buildings (less frequently)
             if (now - lastMissionUpdate > 1000) {
                 missionManager.update(gameYear);
                 updateMissionsDisplay();
 
-                // Update building construction progress
                 const completedBuildings = buildingManager.update(gameYear);
                 if (completedBuildings.length > 0) {
-                    // Apply production bonuses from newly completed buildings
                     buildingManager.applyProductionBonuses();
                 }
 
-                // Refresh buildings panel if visible
                 const buildingsPanel = document.getElementById('buildings-panel');
                 if (buildingsPanel.style.display !== 'none') {
-                    updateConstructionList(); // Update progress bars in real-time
+                    updateConstructionList();
                 }
+
+                // Update research progress
+                researchPanel.updateProgress(gameYear);
+
+                // Update economy panel periodically
+                economyPanel.render();
 
                 lastMissionUpdate = now;
             }

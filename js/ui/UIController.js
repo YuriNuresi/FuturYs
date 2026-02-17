@@ -1,40 +1,46 @@
+/**
+ * 🎮 UIController - Main UI orchestrator (card_712)
+ * Manages planet panel, mission interactions, and layout state
+ */
 export class UIController {
     constructor() {
         this.onLaunchMission = null;
-        this.onMissionClick = null; // Callback for mission click
-        this.onToggleTrajectories = null; // Callback for trajectory toggle
+        this.onMissionClick = null;
+        this.onToggleTrajectories = null;
         this.planetPanel = null;
         this.closeBtn = null;
         this._initPlanetPanel();
         this._initMissionPanel();
+        this._initKeyboardShortcuts();
     }
 
     showLoading(text) {
-        console.log('Loading:', text);
+        console.log('[UIController] Loading:', text);
     }
 
     hideLoading() {
-        console.log('Loading hidden');
+        console.log('[UIController] Loading hidden');
     }
 
     _initPlanetPanel() {
-        // Get panel elements
         this.planetPanel = document.getElementById('planet-info-panel');
         this.closeBtn = document.getElementById('close-panel');
 
-        // Add close button event listener
         if (this.closeBtn) {
             this.closeBtn.addEventListener('click', () => this.hidePlanetInfo());
         }
+
+        // Close planet panel on Escape
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && this.planetPanel && !this.planetPanel.classList.contains('hidden')) {
+                this.hidePlanetInfo();
+            }
+        });
     }
 
     showPlanetInfo(data) {
-        if (!this.planetPanel) {
-            console.error('Planet panel not found');
-            return;
-        }
+        if (!this.planetPanel) return;
 
-        // Populate panel with planet data
         this._setElementText('planet-name', data.name);
         this._setElementText('planet-description', data.description);
         this._setElementText('planet-type', data.type);
@@ -46,10 +52,7 @@ export class UIController {
         this._setElementText('planet-orbital-period', data.orbitalPeriod);
         this._setElementText('planet-travel-time', data.travelTime);
 
-        // Show panel
         this.planetPanel.classList.remove('hidden');
-
-        console.log('Planet info displayed:', data.name);
     }
 
     hidePlanetInfo() {
@@ -64,28 +67,26 @@ export class UIController {
             element.textContent = text || 'N/A';
         }
     }
-    
+
     updateGameState(state) {
-        document.getElementById('current-year').textContent = state.year;
-        document.getElementById('budget-value').textContent = this.format(state.resources.budget);
-        document.getElementById('science-value').textContent = this.format(state.resources.science);
+        const yearEl = document.getElementById('game-year');
+        const dateEl = document.getElementById('game-date');
+        if (yearEl && state.year) yearEl.textContent = state.year;
+        if (dateEl && state.date) dateEl.textContent = state.date;
     }
-    
+
     showNotification(message, type) {
-        console.log(`[${type}] ${message}`);
+        console.log(`[UIController][${type}] ${message}`);
     }
-    
+
     format(num) {
-        if (num >= 1000000) return (num/1000000).toFixed(1) + 'M';
-        if (num >= 1000) return (num/1000).toFixed(1) + 'K';
+        if (num >= 1e9) return (num / 1e9).toFixed(1) + 'B';
+        if (num >= 1e6) return (num / 1e6).toFixed(1) + 'M';
+        if (num >= 1e3) return (num / 1e3).toFixed(1) + 'K';
         return Math.round(num);
     }
 
-    /**
-     * Initialize mission panel controls
-     */
     _initMissionPanel() {
-        // Toggle trajectories button
         const toggleBtn = document.getElementById('toggle-trajectories-btn');
         if (toggleBtn) {
             toggleBtn.addEventListener('click', () => {
@@ -98,11 +99,7 @@ export class UIController {
         }
     }
 
-    /**
-     * Setup mission click handlers
-     */
     setupMissionClickHandlers() {
-        // This will be called after missions are rendered
         const missionElements = document.querySelectorAll('.mission-item');
         missionElements.forEach(el => {
             el.style.cursor = 'pointer';
@@ -111,13 +108,58 @@ export class UIController {
                 if (this.onMissionClick && missionId) {
                     this.onMissionClick(missionId);
 
-                    // Visual feedback
                     document.querySelectorAll('.mission-item').forEach(m => {
                         m.classList.remove('selected');
                     });
                     el.classList.add('selected');
                 }
             });
+        });
+    }
+
+    /**
+     * Switch active nav tab programmatically
+     */
+    switchNavTab(viewName) {
+        const btn = document.querySelector(`.nav-btn[data-view="${viewName}"]`);
+        if (btn) btn.click();
+    }
+
+    /**
+     * Switch active dock tab programmatically
+     */
+    switchDockTab(tabName) {
+        const tab = document.querySelector(`.dock__tab[data-dock-tab="${tabName}"]`);
+        if (tab) tab.click();
+    }
+
+    /**
+     * Toggle sidebar collapsed state
+     */
+    toggleSidebar() {
+        const appContainer = document.getElementById('app-container');
+        if (appContainer) {
+            appContainer.classList.toggle('sidebar-collapsed');
+            localStorage.setItem('futury-sidebar-collapsed', appContainer.classList.contains('sidebar-collapsed'));
+        }
+    }
+
+    /**
+     * Keyboard shortcuts
+     */
+    _initKeyboardShortcuts() {
+        document.addEventListener('keydown', (e) => {
+            // Don't capture when typing in inputs
+            if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+
+            switch (e.key) {
+                case '1': this.switchNavTab('solar-system'); break;
+                case '2': this.switchNavTab('missions'); break;
+                case '3': this.switchNavTab('buildings'); break;
+                case '4': this.switchNavTab('research'); break;
+                case '5': this.switchNavTab('economy'); break;
+                case 'b': if (e.ctrlKey || e.metaKey) { e.preventDefault(); this.toggleSidebar(); } break;
+            }
         });
     }
 }
