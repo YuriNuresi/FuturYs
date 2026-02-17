@@ -20,16 +20,26 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
 $method = $_SERVER['REQUEST_METHOD'];
 $saveManager = new SaveManager();
 
+// Read body once (php://input can only be read once)
+$rawBody = file_get_contents('php://input');
+$bodyData = $rawBody ? json_decode($rawBody, true) : null;
+
+// Auto-create session if it doesn't exist
+$reqSessionId = $_GET['session_id'] ?? ($bodyData['session_id'] ?? null);
+if ($reqSessionId) {
+    $saveManager->ensureSessionExists($reqSessionId);
+}
+
 try {
     switch ($method) {
         case 'GET':
             handleGet($saveManager);
             break;
         case 'POST':
-            handlePost($saveManager);
+            handlePost($saveManager, $bodyData);
             break;
         case 'PUT':
-            handlePut($saveManager);
+            handlePut($saveManager, $bodyData);
             break;
         default:
             sendError('Method not allowed', 405);
@@ -66,8 +76,8 @@ function handleGet($saveManager) {
  * POST /api/save.php
  * Body: { "session_id": 1, "action": "save" }
  */
-function handlePost($saveManager) {
-    $data = json_decode(file_get_contents('php://input'), true);
+function handlePost($saveManager, $data = null) {
+    if (!$data) $data = json_decode(file_get_contents('php://input'), true);
 
     if (!isset($data['session_id'])) {
         sendError('session_id required', 400);
@@ -96,8 +106,8 @@ function handlePost($saveManager) {
  * PUT /api/save.php
  * Body: { "session_id": 1, "action": "load" }
  */
-function handlePut($saveManager) {
-    $data = json_decode(file_get_contents('php://input'), true);
+function handlePut($saveManager, $data = null) {
+    if (!$data) $data = json_decode(file_get_contents('php://input'), true);
 
     if (!isset($data['session_id'])) {
         sendError('session_id required', 400);

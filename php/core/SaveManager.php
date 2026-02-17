@@ -15,6 +15,34 @@ class SaveManager {
     }
 
     /**
+     * Ensure a game session exists, create if missing
+     */
+    public function ensureSessionExists($sessionId) {
+        $session = $this->db->selectOne(
+            'SELECT id FROM game_sessions WHERE id = :id',
+            ['id' => $sessionId]
+        );
+
+        if (!$session) {
+            // Create default session
+            $this->db->insert(
+                'INSERT INTO game_sessions (id, player_id, session_name, game_start_year, current_game_year, real_start_time, last_update, is_paused)
+                 VALUES (:id, 1, :name, 2100, 2100, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 0)',
+                ['id' => $sessionId, 'name' => 'Session ' . $sessionId]
+            );
+
+            // Create default resources
+            $this->db->insert(
+                'INSERT INTO player_resources (session_id, budget, science_points, population, energy, materials, food, water, oxygen, budget_production, science_production, population_growth, energy_production)
+                 VALUES (:sid, 1000000, 10000, 500000000, 1000, 500, 1000, 1000, 1000, 50000, 500, 1000000, 50)',
+                ['sid' => $sessionId]
+            );
+
+            error_log("[SaveManager] Auto-created session {$sessionId}");
+        }
+    }
+
+    /**
      * Get complete game state
      */
     public function getGameState($sessionId) {
