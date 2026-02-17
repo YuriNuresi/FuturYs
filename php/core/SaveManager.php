@@ -24,6 +24,14 @@ class SaveManager {
         );
 
         if (!$session) {
+            // Ensure default player exists (game_sessions has FK to players)
+            $player = $this->db->selectOne('SELECT id FROM players WHERE id = 1');
+            if (!$player) {
+                $this->db->insert(
+                    "INSERT INTO players (id, username, email, password_hash, nation_id) VALUES (1, 'default', 'default@futury.game', 'none', 1)"
+                );
+            }
+
             // Create default session
             $this->db->insert(
                 'INSERT INTO game_sessions (id, player_id, session_name, game_start_year, current_game_year, real_start_time, last_update, is_paused)
@@ -38,7 +46,7 @@ class SaveManager {
                 ['sid' => $sessionId]
             );
 
-            error_log("[SaveManager] Auto-created session {$sessionId}");
+            error_log("[SaveManager] Auto-created player + session {$sessionId}");
         }
     }
 
