@@ -212,6 +212,41 @@ Quando inizi a lavorare su questo progetto:
 
 ---
 
-**Ultima modifica**: 2026-02-11
-**Versione**: 1.0.0
+### **Hosting & Deploy (OVH)**
+
+1. **Deploy Automatico**
+   - L'hosting OVH è configurato con auto-deploy da GitHub su merge in `main`
+   - Ogni merge in main triggera automaticamente un `git pull` sul server
+
+2. **File Runtime (NON cancellare sul server)**
+   - `database/futury.db` → Database SQLite con dati di gioco (gitignored, git NON lo ripristina)
+   - Non cancellare mai file `.db` sul server, si perdono i dati
+
+3. **Risolvere conflitti sul server OVH**
+   - Se il deploy fallisce per "local changes would be overwritten":
+   ```bash
+   # Cancella solo il file in conflitto, poi il pull lo ricrea dal repo
+   rm _Ykan_data.json
+   git pull origin main
+   ```
+   - **MAI** fare `git checkout -- .` o `git reset --hard` senza verificare prima quali file sono modificati
+
+4. **Gitignore**
+   - `*.db` e `database/*.db` sono gitignored → il DB non è nel repo
+   - `_Ykan_data.json` è tracciato → se modificato sul server, va cancellato prima del pull
+   - File di log e cache sono gitignored
+
+---
+
+## 📞 Riferimenti Rapidi
+
+- **Database Schema**: Vedi `database/futury.db` o init script
+- **API Endpoints**: Vedi `php/api/` directory
+- **3D Assets**: Texture procedurali, no file esterni per MVP
+- **Game Config**: Costanti in `js/config/GameConfig.js`
+
+---
+
+**Ultima modifica**: 2026-02-17
+**Versione**: 1.1.0
 **Progetto**: FuturY - Strategia Galattica
