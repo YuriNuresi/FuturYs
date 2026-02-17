@@ -23,30 +23,37 @@ class SaveManager {
             ['id' => $sessionId]
         );
 
-        if (!$session) {
-            // Ensure default player exists (game_sessions has FK to players)
-            $player = $this->db->selectOne('SELECT id FROM players WHERE id = 1');
+        if ($session) return;
+
+        // Use raw PDO to bypass FK constraints and get actual errors
+        $pdo = $this->db->getConnection();
+
+        try {
+            $pdo->exec('PRAGMA foreign_keys = OFF');
+            $pdo->beginTransaction();
+
+            // Create default player if missing
+            $player = $pdo->query('SELECT id FROM players WHERE id = 1')->fetch();
             if (!$player) {
-                $this->db->insert(
-                    "INSERT INTO players (id, username, email, password_hash, nation_id) VALUES (1, 'default', 'default@futury.game', 'none', 1)"
-                );
+                $pdo->exec("INSERT INTO players (id, username, email, password_hash, nation_id) VALUES (1, 'default', 'default@futury.game', 'none', 1)");
             }
 
-            // Create default session
-            $this->db->insert(
-                'INSERT INTO game_sessions (id, player_id, session_name, game_start_year, current_game_year, real_start_time, last_update, is_paused)
-                 VALUES (:id, 1, :name, 2100, 2100, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 0)',
-                ['id' => $sessionId, 'name' => 'Session ' . $sessionId]
-            );
+            // Create session
+            $stmt = $pdo->prepare('INSERT INTO game_sessions (id, player_id, session_name, game_start_year, current_game_year, real_start_time, last_update, is_paused) VALUES (?, 1, ?, 2100, 2100, datetime("now"), datetime("now"), 0)');
+            $stmt->execute([$sessionId, 'Session ' . $sessionId]);
 
             // Create default resources
-            $this->db->insert(
-                'INSERT INTO player_resources (session_id, budget, science_points, population, energy, materials, food, water, oxygen, budget_production, science_production, population_growth, energy_production)
-                 VALUES (:sid, 1000000, 10000, 500000000, 1000, 500, 1000, 1000, 1000, 50000, 500, 1000000, 50)',
-                ['sid' => $sessionId]
-            );
+            $stmt = $pdo->prepare('INSERT INTO player_resources (session_id, budget, science_points, population, energy, materials, food, water, oxygen, budget_production, science_production, population_growth, energy_production) VALUES (?, 1000000, 10000, 500000000, 1000, 500, 1000, 1000, 1000, 50000, 500, 1000000, 50)');
+            $stmt->execute([$sessionId]);
+
+            $pdo->commit();
+            $pdo->exec('PRAGMA foreign_keys = ON');
 
             error_log("[SaveManager] Auto-created player + session {$sessionId}");
+        } catch (\Exception $e) {
+            if ($pdo->inTransaction()) $pdo->rollBack();
+            $pdo->exec('PRAGMA foreign_keys = ON');
+            error_log("[SaveManager] FAILED to create session {$sessionId}: " . $e->getMessage());
         }
     }
 
