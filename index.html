@@ -8,7 +8,7 @@
     <!-- PWA -->
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#4fd1c7">
-    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="FuturY">
     <link rel="icon" type="image/svg+xml" href="assets/icons/icon.svg">
@@ -424,22 +424,23 @@
         
         async function loadGame() {
             updateStatus('Caricamento partite salvate...', 'connecting');
-            
+
             try {
-                // TODO: Fetch saved games
-                const response = await fetch('php/api/save-load.php?action=list');
-                const savedGames = await response.json();
-                
-                if (savedGames.length === 0) {
+                // Check if a saved session exists (default session_id=1)
+                const response = await fetch('php/api/save.php?session_id=1&action=info');
+                const result = await response.json();
+
+                if (!result.success) {
                     alert('Nessuna partita salvata trovata. Inizia una nuova partita!');
                     updateStatus('Sistema pronto', 'connected');
                     return;
                 }
-                
-                // TODO: Show saved games selection
-                alert('Feature caricamento partita in sviluppo!');
-                updateStatus('Sistema pronto', 'connected');
-                
+
+                // Session exists — load directly into the game
+                const nation = result.data?.nation_code || sessionStorage.getItem('selectedNation') || 'USA';
+                sessionStorage.setItem('selectedNation', nation);
+                window.location.href = `game.html?nation=${nation}&load=1`;
+
             } catch (error) {
                 updateStatus('Errore caricamento: ' + error.message, 'error');
                 console.error('Load game error:', error);
