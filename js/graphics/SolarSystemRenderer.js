@@ -378,13 +378,19 @@ const ORBITAL_ELEMENTS = {
     neptune: { a: 30.0690, e: 0.00895, I: 1.770, L0: 304.349, wbar: 48.124, omega: 131.784, period: 164.790 }
 };
 
-// Geometry segments by planet size tier (small, medium, large)
-const SEGMENTS = { small: 24, medium: 32, large: 40 };
-const PLANET_SEGMENTS = {
-    mercury: SEGMENTS.small, venus: SEGMENTS.medium, earth: SEGMENTS.medium,
-    mars: SEGMENTS.small, jupiter: SEGMENTS.large, saturn: SEGMENTS.large,
-    uranus: SEGMENTS.medium, neptune: SEGMENTS.medium
+// Geometry segments by LOD tier
+const LOD_SEGMENTS = {
+    high: { small: 32, medium: 48, large: 64 },
+    medium: { small: 16, medium: 24, large: 32 },
+    low: { small: 8, medium: 12, large: 16 }
 };
+const PLANET_SIZE_TIER = {
+    mercury: 'small', venus: 'medium', earth: 'medium',
+    mars: 'small', jupiter: 'large', saturn: 'large',
+    uranus: 'medium', neptune: 'medium'
+};
+// LOD distance thresholds (scene units from camera)
+const LOD_THRESHOLDS = { high: 80, medium: 250 }; // beyond medium → low
 
 // Distance scaling: compress AU to scene units so all planets are visible
 const DIST_BASE = 18;
@@ -925,6 +931,9 @@ export class SolarSystemRenderer {
         this._selectionRing = null;
         this._frameCount = 0;
 
+        // Performance stats
+        this._perfStats = { fps: 0, frameCount: 0, lastCheck: performance.now(), drawCalls: 0 };
+
         // Camera animation state
         this._cameraAnimation = {
             active: false,
@@ -1046,35 +1055,47 @@ export class SolarSystemRenderer {
      * @param {string} name
      * @param {object} opts
      * @param {number} opts.radius - sphere radius
-     * @param {HTMLCanvasElement} opts.textureCanvas - procedural texture canvas
+     * @param {HTMLCanvasElement|function} opts.textureCanvas - canvas or lazy generator function
      * @param {number} opts.rotationPeriod - sidereal rotation period in Earth hours (negative = retrograde)
      * @param {number} opts.axialTilt - axial tilt in degrees
      * @param {THREE.Mesh[]} [opts.extras] - extra meshes (atmosphere, rings) added to group
+     * @param {boolean} [opts.lazy] - defer texture generation until camera approaches
      */
-    _addPlanet(name, { radius, textureCanvas, rotationPeriod, axialTilt, extras }) {
-        const geo = new THREE.SphereGeometry(radius, 32, 32);
-        const texture = new THREE.CanvasTexture(textureCanvas);
-        texture.colorSpace = THREE.SRGBColorSpace;
-        const mat = new THREE.MeshStandardMaterial({ map: texture, roughness: 0.5, metalness: 0.2 });
+    _addPlanet(name, { radius, textureCanvas, rotationPeriod, axialTilt, extras, lazy }) {
+        const tier = PLANET_SIZE_TIER[name] || 'medium';
+        const segments = LOD_SEGMENTS.high[tier];
+        const geo = new THREE.SphereGeometry(radius, segments, segments);
+
+        let texture, mat;
+        if (lazy && typeof textureCanvas === 'function') {
+            // Lazy: start with flat color, generate texture on first approach
+            mat = new THREE.MeshStandardMaterial({ color: 0x333344, roughness: 0.5, metalness: 0.2 });
+        } else {
+            const canvas = typeof textureCanvas === 'function' ? textureCanvas() : textureCanvas;
+            texture = new THREE.CanvasTexture(canvas);
+            texture.colorSpace = THREE.SRGBColorSpace;
+            mat = new THREE.MeshStandardMaterial({ map: texture, roughness: 0.5, metalness: 0.2 });
+        }
         const mesh = new THREE.Mesh(geo, mat);
         mesh.name = name;
 
-        // Group planet + extras so position sync is automatic
         const group = new THREE.Group();
         group.add(mesh);
         const extraMeshes = extras || [];
         extraMeshes.forEach(m => group.add(m));
         this.scene.add(group);
 
-        // Pre-compute tilted rotation axis
         const tilt = degToRad(axialTilt || 0);
         const rotationAxis = new THREE.Vector3(Math.sin(tilt), Math.cos(tilt), 0).normalize();
-
         const rotationsPerYear = (365.25 * 24) / rotationPeriod;
 
         this.planets.set(name, {
             mesh, group, rotationAxis, rotationsPerYear,
-            coeffs: ORBITAL_COEFFS[name]
+            coeffs: ORBITAL_COEFFS[name],
+            radius, tier,
+            currentLOD: 'high',
+            textureLoaded: !lazy,
+            lazyTextureGen: lazy ? textureCanvas : null
         });
     }
 
@@ -1149,15 +1170,15 @@ export class SolarSystemRenderer {
 
     _createUranus() {
         this._addPlanet('uranus', {
-            radius: 4, textureCanvas: uranusTexture(),
-            rotationPeriod: -17.24, axialTilt: 97.77
+            radius: 4, textureCanvas: uranusTexture,
+            rotationPeriod: -17.24, axialTilt: 97.77, lazy: true
         });
     }
 
     _createNeptune() {
         this._addPlanet('neptune', {
-            radius: 3.8, textureCanvas: neptuneTexture(),
-            rotationPeriod: 16.11, axialTilt: 28.32
+            radius: 3.8, textureCanvas: neptuneTexture,
+            rotationPeriod: 16.11, axialTilt: 28.32, lazy: true
         });
     }
 
@@ -1529,14 +1550,20 @@ export class SolarSystemRenderer {
     render() {
         if (!this.renderer) return;
 
-        // Calculate delta time for smooth animations
         const now = performance.now();
-        const deltaTime = (now - this._lastFrameTime) / 1000; // Convert to seconds
+        const deltaTime = (now - this._lastFrameTime) / 1000;
         this._lastFrameTime = now;
 
-        // Update camera animation if active
-        this._updateCameraAnimation(deltaTime);
+        // Performance stats (every 2 seconds)
+        this._perfStats.frameCount++;
+        if (now - this._perfStats.lastCheck >= 2000) {
+            this._perfStats.fps = Math.round(this._perfStats.frameCount / ((now - this._perfStats.lastCheck) / 1000));
+            this._perfStats.drawCalls = this.renderer.info.render.calls;
+            this._perfStats.frameCount = 0;
+            this._perfStats.lastCheck = now;
+        }
 
+        this._updateCameraAnimation(deltaTime);
         this.controls?.update();
 
         if (this.sun) {
@@ -1545,33 +1572,74 @@ export class SolarSystemRenderer {
 
         this._frameCount++;
         const updateOrbits = (this._frameCount % ORBIT_UPDATE_EVERY) === 0;
+        const updateLOD = (this._frameCount % 30) === 0; // LOD check every ~0.5s
         const TWO_PI = Math.PI * 2;
 
-        for (const [, planet] of this.planets) {
-            // Orbital position — throttled (Kepler solve is expensive)
+        for (const [name, planet] of this.planets) {
             if (updateOrbits) {
                 const pos = computeOrbitalPosition(planet.coeffs, this.gameYear);
                 planet.group.position.set(pos.x, pos.y, pos.z);
             }
 
-            // Self-rotation: absolute angle from game year
-            // rotationsPerYear * gameYear * 2pi = total angle
             const angle = planet.rotationsPerYear * this.gameYear * TWO_PI;
             planet.mesh.quaternion.setFromAxisAngle(planet.rotationAxis, angle);
+
+            // LOD + lazy texture loading
+            if (updateLOD) {
+                const dist = planet.group.position.distanceTo(this.camera.position);
+                let targetLOD;
+                if (dist < LOD_THRESHOLDS.high) {
+                    targetLOD = 'high';
+                } else if (dist < LOD_THRESHOLDS.medium) {
+                    targetLOD = 'medium';
+                } else {
+                    targetLOD = 'low';
+                }
+
+                // Lazy texture loading: generate when camera approaches
+                if (!planet.textureLoaded && dist < LOD_THRESHOLDS.medium && planet.lazyTextureGen) {
+                    const canvas = planet.lazyTextureGen();
+                    const texture = new THREE.CanvasTexture(canvas);
+                    texture.colorSpace = THREE.SRGBColorSpace;
+                    planet.mesh.material.map = texture;
+                    planet.mesh.material.color.set(0xffffff);
+                    planet.mesh.material.needsUpdate = true;
+                    planet.textureLoaded = true;
+                    planet.lazyTextureGen = null;
+                    console.log(`[Perf] Lazy-loaded texture for ${name}`);
+                }
+
+                // Swap geometry when LOD tier changes
+                if (targetLOD !== planet.currentLOD) {
+                    const segs = LOD_SEGMENTS[targetLOD][planet.tier];
+                    const oldGeo = planet.mesh.geometry;
+                    planet.mesh.geometry = new THREE.SphereGeometry(planet.radius, segs, segs);
+                    oldGeo.dispose();
+                    planet.currentLOD = targetLOD;
+                }
+            }
         }
 
-        // Update selection ring position
         if (this._selectionRing.visible && this.selectedPlanet) {
             const sel = this.planets.get(this.selectedPlanet);
             if (sel) {
                 const wp = sel.group.position;
                 this._selectionRing.position.set(wp.x, wp.y, wp.z);
-                // Rotate ring to always face camera
                 this._selectionRing.lookAt(this.camera.position);
             }
         }
 
         this.renderer.render(this.scene, this.camera);
+    }
+
+    /** Get current performance stats */
+    getPerformanceStats() {
+        return {
+            fps: this._perfStats.fps,
+            drawCalls: this._perfStats.drawCalls,
+            triangles: this.renderer?.info.render.triangles || 0,
+            textures: this.renderer?.info.memory.textures || 0
+        };
     }
 
     /**

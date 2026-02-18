@@ -1,7 +1,7 @@
 /**
  * FUTURY - Notification Manager
- * Toast/banner notifications system
- * @version 1.0.0
+ * Toast/banner notifications + Browser Notification API
+ * @version 2.0.0
  */
 
 export class NotificationManager {
@@ -10,6 +10,42 @@ export class NotificationManager {
         this.notifications = [];
         this.maxNotifications = 5;
         this.defaultDuration = 5000;
+        this.browserPermission = Notification?.permission || 'denied';
+    }
+
+    /**
+     * Request browser notification permission
+     * @returns {Promise<string>} Permission state: 'granted', 'denied', 'default'
+     */
+    async requestPermission() {
+        if (!('Notification' in window)) return 'denied';
+        if (Notification.permission === 'granted') {
+            this.browserPermission = 'granted';
+            return 'granted';
+        }
+        if (Notification.permission !== 'denied') {
+            const result = await Notification.requestPermission();
+            this.browserPermission = result;
+            return result;
+        }
+        return Notification.permission;
+    }
+
+    /**
+     * Send a browser-level notification (only when tab is hidden)
+     * @param {string} title
+     * @param {string} body
+     * @param {string} icon
+     */
+    sendBrowserNotification(title, body, icon = '/assets/icons/icon.svg') {
+        if (this.browserPermission !== 'granted') return;
+        if (document.visibilityState === 'visible') return;
+
+        const n = new Notification(title, { body, icon, badge: icon, tag: title });
+        n.onclick = () => {
+            window.focus();
+            n.close();
+        };
     }
 
     /**
@@ -30,6 +66,11 @@ export class NotificationManager {
 
         this.container.appendChild(notification);
         this.notifications.push(notification);
+
+        // Browser notification for important events when tab is hidden
+        if (type === 'success' || type === 'warning') {
+            this.sendBrowserNotification(title, message);
+        }
 
         // Remove oldest if too many
         if (this.notifications.length > this.maxNotifications) {
