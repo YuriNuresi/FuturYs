@@ -101,6 +101,48 @@
     font-weight: 600;
 }
 
+/* === Music Controls === */
+.nav-bar__music {
+    display: flex;
+    align-items: center;
+    gap: var(--space-sm);
+    margin-left: var(--space-md);
+}
+
+.music-btn {
+    padding: var(--space-sm) !important;
+    min-width: auto !important;
+}
+
+.music-volume {
+    width: 70px;
+    height: 4px;
+    -webkit-appearance: none;
+    appearance: none;
+    background: var(--color-accent-dim);
+    border-radius: 2px;
+    outline: none;
+    cursor: pointer;
+}
+
+.music-volume::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background: var(--color-accent);
+    cursor: pointer;
+}
+
+.music-volume::-moz-range-thumb {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background: var(--color-accent);
+    border: none;
+    cursor: pointer;
+}
+
 /* === HUD Overlay (on top of canvas) === */
 .hud-overlay {
     position: fixed;

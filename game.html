@@ -4,6 +4,16 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>FuturY - Sistema Solare</title>
+
+    <!-- PWA -->
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#4fd1c7">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="FuturY">
+    <link rel="icon" type="image/svg+xml" href="assets/icons/icon.svg">
+    <link rel="apple-touch-icon" href="assets/icons/icon.svg">
+
     <script type="importmap">
     {
         "imports": {
@@ -69,7 +79,20 @@
                     <span class="nav-btn__label">Economy</span>
                 </button>
             </div>
+
+            <!-- Music Controls -->
+            <div class="nav-bar__music" id="music-controls">
+                <button class="nav-btn music-btn" id="music-toggle" title="Toggle Music">
+                    <span class="nav-btn__icon" id="music-icon">🔇</span>
+                </button>
+                <input type="range" id="music-volume" class="music-volume" min="0" max="100" value="30" title="Volume">
+            </div>
         </nav>
+
+        <!-- Hidden YouTube Player -->
+        <div id="youtube-player-container" style="position:absolute;width:0;height:0;overflow:hidden;pointer-events:none;">
+            <div id="yt-player"></div>
+        </div>
 
         <!-- === SIDEBAR LEFT === -->
         <aside class="sidebar-left" id="sidebar-left">
@@ -609,6 +632,11 @@
 
         await renderer.init();
 
+        // Request browser notification permission
+        notificationManager.requestPermission().then(perm => {
+            console.log('[Notifications] Browser permission:', perm);
+        });
+
         // Tutorial
         tutorialManager.init();
         setTimeout(() => {
@@ -1089,6 +1117,70 @@
         }
 
         animate();
+
+        // Service Worker registration
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('/service-worker.js')
+                .then(reg => console.log('[SW] Registered:', reg.scope))
+                .catch(err => console.warn('[SW] Registration failed:', err));
+        }
+
+        // ===========================
+        // MUSIC PLAYER (YouTube IFrame API)
+        // ===========================
+        (function initMusicPlayer() {
+            const PLAYLIST_ID = 'PLhBgTe3RCcTBSiMqKWrT9fl3bnBiOxAn'; // Space ambient playlist
+            const toggleBtn = document.getElementById('music-toggle');
+            const iconEl = document.getElementById('music-icon');
+            const volumeSlider = document.getElementById('music-volume');
+            let player = null;
+            let playing = false;
+            const savedVolume = parseInt(localStorage.getItem('futury_music_volume') ?? '30', 10);
+            volumeSlider.value = savedVolume;
+
+            // Load YouTube IFrame API
+            const tag = document.createElement('script');
+            tag.src = 'https://www.youtube.com/iframe_api';
+            document.head.appendChild(tag);
+
+            window.onYouTubeIframeAPIReady = () => {
+                player = new YT.Player('yt-player', {
+                    height: '1', width: '1',
+                    playerVars: {
+                        listType: 'playlist', list: PLAYLIST_ID,
+                        autoplay: 0, loop: 1, controls: 0
+                    },
+                    events: {
+                        onReady: () => {
+                            player.setVolume(savedVolume);
+                            console.log('[Music] YouTube player ready');
+                        }
+                    }
+                });
+            };
+
+            toggleBtn.addEventListener('click', () => {
+                if (!player || typeof player.getPlayerState !== 'function') return;
+                if (playing) {
+                    player.pauseVideo();
+                    iconEl.textContent = '🔇';
+                    playing = false;
+                } else {
+                    player.playVideo();
+                    iconEl.textContent = '🎵';
+                    playing = true;
+                }
+            });
+
+            volumeSlider.addEventListener('input', () => {
+                const vol = parseInt(volumeSlider.value, 10);
+                if (player && typeof player.setVolume === 'function') {
+                    player.setVolume(vol);
+                }
+                localStorage.setItem('futury_music_volume', vol);
+                iconEl.textContent = vol === 0 ? '🔇' : (playing ? '🎵' : '🔇');
+            });
+        })();
     </script>
 </body>
 </html>
