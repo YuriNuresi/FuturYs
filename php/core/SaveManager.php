@@ -329,7 +329,11 @@ class SaveManager {
      */
     public function getSaveInfo($sessionId) {
         $session = $this->db->selectOne(
-            'SELECT session_name, last_update, save_data FROM game_sessions WHERE id = :id',
+            'SELECT gs.session_name, gs.last_update, gs.save_data, n.code as nation_code
+             FROM game_sessions gs
+             JOIN players p ON gs.player_id = p.id
+             JOIN nations n ON p.nation_id = n.id
+             WHERE gs.id = :id',
             ['id' => $sessionId]
         );
 
@@ -344,6 +348,7 @@ class SaveManager {
             'success' => true,
             'has_save' => $hasSave,
             'session_name' => $session['session_name'],
+            'nation_code' => $session['nation_code'],
             'last_save' => $hasSave ? $saveData['saved_at'] : null,
             'last_update' => $session['last_update']
         ];
