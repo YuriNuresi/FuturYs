@@ -5,6 +5,15 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>🚀 FuturY - Strategia Galattica di Sopravvivenza</title>
 
+    <!-- PWA -->
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#4fd1c7">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="FuturY">
+    <link rel="icon" type="image/svg+xml" href="assets/icons/icon.svg">
+    <link rel="apple-touch-icon" href="assets/icons/icon.svg">
+
     <!-- External CSS -->
     <link rel="stylesheet" href="css/nation-selector.css">
 
@@ -536,15 +545,24 @@
             const stars = document.querySelectorAll('.star');
             const x = event.clientX / window.innerWidth;
             const y = event.clientY / window.innerHeight;
-            
+
             stars.forEach((star, index) => {
                 const speed = (index % 3 + 1) * 0.5;
                 const moveX = (x - 0.5) * speed;
                 const moveY = (y - 0.5) * speed;
-                
+
                 star.style.transform = `translate(${moveX}px, ${moveY}px)`;
             });
         });
+
+        // ===========================
+        // SERVICE WORKER REGISTRATION
+        // ===========================
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('/service-worker.js')
+                .then(reg => console.log('[SW] Registered:', reg.scope))
+                .catch(err => console.warn('[SW] Registration failed:', err));
+        }
     </script>
 </body>
 </html>
